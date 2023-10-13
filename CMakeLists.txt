@@ -3,8 +3,17 @@ project(mydumper)
 set(VERSION 0.15.2-6)
 set(ARCHIVE_NAME "${CMAKE_PROJECT_NAME}-${VERSION}")
 
+# FIXME: make better detection of submodule role
+if (TARGET dist)
+  option(WITH_MYDUMPER "Build mydumper" ON)
+  if (NOT WITH_MYDUMPER)
+    return()
+  endif()
+endif()
+
 #Required packages
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
+    ${CMAKE_SOURCE_DIR}/cmake/modules)
 find_package(MySQL)
 find_package(ZLIB)
 find_package(GLIB2)
@@ -33,7 +42,9 @@ endif (PC_GLIB2_VERSION VERSION_GREATER "2.51")
 #	MESSAGE(FATAL_ERROR "GLIB version lower than 2.68")
 #endif (PC_GLIB2_VERSION VERSION_LESS "2.68")
 
-option(WITH_SSL "Build SSL support" ON)
+if (NOT TARGET dist)
+  option(WITH_SSL "Build SSL support" ON)
+endif()
 if (MARIADB_FOUND AND NOT MARIADB_SSL AND WITH_SSL)
     message(WARNING "MariaDB was not build with SSL so cannot turn SSL on")
     set(WITH_SSL OFF)
@@ -90,14 +101,16 @@ INSTALL(TARGETS mydumper myloader
 )
 
 INSTALL(FILES mydumper.cnf
-  DESTINATION /etc
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/etc
   COMPONENT config
 )
 
-add_custom_target(dist
-  COMMAND git archive --format=tar.gz --prefix=${ARCHIVE_NAME}/
-  -o ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.gz HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+if (NOT TARGET dist)
+  add_custom_target(dist
+    COMMAND git archive --format=tar.gz --prefix=${ARCHIVE_NAME}/
+    -o ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.gz HEAD
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endif()
 
 OPTION(RUN_CPPCHECK "Run cppcheck" OFF)
 
