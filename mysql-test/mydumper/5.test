@@ -1,0 +1,12 @@
+create sequence s1;
+
+--let $outdir= $MYSQL_TMP_DIR/mydumper
+--mkdir $outdir
+--exec $MYDUMPER -o $outdir -B test --debug
+drop database test;
+--exec $MYLOADER -d $outdir
+
+use test;
+
+show create table s1;
+drop tables s1;

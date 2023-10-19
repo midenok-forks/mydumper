@@ -1,0 +1,22 @@
+--source include/have_innodb.inc
+
+create table t1 (id varchar(37) not null, content longblob) engine=INNODB;
+insert into t1 (id, content) values('xyz', repeat('a', 107374180));
+insert t1 select * from t1;
+insert t1 select * from t1;
+insert t1 select * from t1;
+insert t1 select * from t1;
+
+select sum(length(content)) as s from t1;
+
+# insert into t1 (id, content) values('xyz', repeat('a', 4294967295));
+
+
+--let $outdir= $MYSQL_TMP_DIR/mydumper
+--mkdir $outdir
+--exec $MYDUMPER -o $outdir -B test --debug --stream > $MYSQL_TMP_DIR/mydumper.sql
+
+use test;
+
+show create table t1;
+drop tables t1;
