@@ -1,0 +1,158 @@
+drop table if exists t1, t2, t3, t4, t5, t6;
+create table t1 (id int(8), name varchar(32));
+create table t2 (id int(8), name varchar(32)) ENGINE="MyISAM";
+create table t3 (id int(8), name varchar(32)) ENGINE="MEMORY";
+create table t4 (id int(8), name varchar(32)) ENGINE="HEAP";
+create table t5 (id int(8), name varchar(32)) ENGINE="ARCHIVE";
+create table t6 (id int(8), name varchar(32)) ENGINE="InnoDB";
+insert into t1 values (1, 'first value');
+insert into t1 values (2, 'first value');
+insert into t1 values (3, 'first value');
+insert into t1 values (4, 'first value');
+insert into t1 values (5, 'first value');
+insert into t2 values (1, 'first value');
+insert into t2 values (2, 'first value');
+insert into t2 values (3, 'first value');
+insert into t2 values (4, 'first value');
+insert into t2 values (5, 'first value');
+insert into t3 values (1, 'first value');
+insert into t3 values (2, 'first value');
+insert into t3 values (3, 'first value');
+insert into t3 values (4, 'first value');
+insert into t3 values (5, 'first value');
+insert into t4 values (1, 'first value');
+insert into t4 values (2, 'first value');
+insert into t4 values (3, 'first value');
+insert into t4 values (4, 'first value');
+insert into t4 values (5, 'first value');
+insert into t5 values (1, 'first value');
+insert into t5 values (2, 'first value');
+insert into t5 values (3, 'first value');
+insert into t5 values (4, 'first value');
+insert into t5 values (5, 'first value');
+insert into t6 values (1, 'first value');
+insert into t6 values (2, 'first value');
+insert into t6 values (3, 'first value');
+insert into t6 values (4, 'first value');
+insert into t6 values (5, 'first value');
+drop database test;
+use test;
+select * from t1;
+id	name
+1	first value
+2	first value
+3	first value
+4	first value
+5	first value
+select * from t2;
+id	name
+1	first value
+2	first value
+3	first value
+4	first value
+5	first value
+select * from t3;
+id	name
+1	first value
+2	first value
+3	first value
+4	first value
+5	first value
+select * from t4;
+id	name
+1	first value
+2	first value
+3	first value
+4	first value
+5	first value
+select * from t5;
+id	name
+1	first value
+2	first value
+3	first value
+4	first value
+5	first value
+select * from t6;
+id	name
+1	first value
+2	first value
+3	first value
+4	first value
+5	first value
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+SELECT @@global.default_storage_engine INTO @old_engine;
+SET GLOBAL default_storage_engine=InnoDB;
+CREATE VIEW v1 AS SELECT * FROM t1;
+INSERT INTO t1 VALUES();
+SELECT COUNT(*) FROM v1;
+COUNT(*)
+1
+drop database test;
+use test;
+SELECT COUNT(*) FROM v1;
+COUNT(*)
+1
+DROP VIEW  v1;
+DROP TABLE t1;
+SET GLOBAL default_storage_engine=@old_engine;
+connect c1,127.0.0.1,root,,test,$MASTER_MYPORT,;
+connect c2,127.0.0.1,root,,test,$MASTER_MYPORT,;
+connect c3,127.0.0.1,root,,test,$MASTER_MYPORT,;
+connection default;
+SET binlog_format= mixed;
+RESET MASTER;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,0), (2,0);
+SELECT GET_LOCK("block_queries_1", 120);
+GET_LOCK("block_queries_1", 120)
+1
+connection c3;
+SELECT GET_LOCK("block_queries_2", 120);
+GET_LOCK("block_queries_2", 120)
+1
+connection c1;
+SET @c= 0;
+SELECT IF(@c<1, @c:=@c+1, GET_LOCK("block_queries_1", 120)) FROM t1 ORDER BY a;
+connection c2;
+SET binlog_format="row";
+SET @d= 10;
+UPDATE t2 SET b=IF(@d<=10, @d:=@d+1, GET_LOCK("block_queries_2", 120)) ORDER BY a;
+connection default;
+# Make sure other queries are running (and waiting).
+SELECT RELEASE_LOCK("block_queries_1");
+RELEASE_LOCK("block_queries_1")
+1
+connection c3;
+SELECT RELEASE_LOCK("block_queries_2");
+RELEASE_LOCK("block_queries_2")
+1
+connection c1;
+IF(@c<1, @c:=@c+1, GET_LOCK("block_queries_1", 120))
+1
+1
+connection c2;
+connection default;
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	11
+2	1
+DROP TABLE t1;
+DROP TABLE t2;
+drop database test;
+use test;
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	0
+2	0
+DROP TABLE t1,t2;
