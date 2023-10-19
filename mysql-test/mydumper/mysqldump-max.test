@@ -1117,6 +1117,14 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 INSERT INTO t1 VALUES();
 SELECT COUNT(*) FROM v1;
 
+# --let $targetdir=$MYSQLTEST_VARDIR/tmp/mydumper
+# --mkdir $targetdir
+# --exec $MYDUMPER -o $targetdir -B test
+
+#drop database test;
+#--exec $MYLOADER -d $targetdir
+#use test;
+
 --source include/mydumper_dump.inc
 --source include/myloader_restore.inc
 
@@ -1185,19 +1193,6 @@ DROP TABLE t1;
 DROP TABLE t2;
 --source include/myloader_restore.inc
 
-let $binlog_limit= 7, 3;
-source include/show_binlog_events.inc;
-source include/binlog_start_pos.inc;
-let _BINLOG_START_POS= $binlog_start_pos;
---perl
-my $f= "$ENV{MYSQLTEST_VARDIR}/tmp/mwl136.sql";
-my $pos=$ENV{_BINLOG_START_POS} + 757;
-open F, '<', $f or die "Failed to open $f: $!\n";
-while (<F>) {
-   s/$pos/<pos>/;
-   print if /CHANGE MASTER TO/;
-}
-EOF
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 

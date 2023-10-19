@@ -425,7 +425,7 @@ void write_view_definition_into_file(MYSQL *conn, struct db_table *dbt, char *fi
   }
   g_free(query);
   g_string_set_size(statement, 0);
-  g_string_append_printf(statement, "CREATE TABLE IF NOT EXISTS %c%s%c(\n", identifier_quote_character,dbt->table,identifier_quote_character);
+  g_string_append_printf(statement, "CREATE TEMPORARY TABLE IF NOT EXISTS %c%s%c(\n", identifier_quote_character,dbt->table,identifier_quote_character);
   row = mysql_fetch_row(result);
   g_string_append_printf(statement, "%c%s%c int", identifier_quote_character,row[0],identifier_quote_character);
   while ((row = mysql_fetch_row(result))) {
@@ -473,7 +473,7 @@ void write_view_definition_into_file(MYSQL *conn, struct db_table *dbt, char *fi
     g_string_printf(statement,"%s;\n",set_names_statement);
   }
 
-  g_string_append_printf(statement, "DROP TABLE IF EXISTS `%s`;\n", dbt->table);
+  g_string_append_printf(statement, "DROP TEMPORARY TABLE IF EXISTS `%s`;\n", dbt->table);
   g_string_append_printf(statement, "DROP VIEW IF EXISTS `%s`;\n", dbt->table);
 
   if (!write_data(outfile2, statement)) {
