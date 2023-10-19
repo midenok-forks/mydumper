@@ -1,0 +1,9 @@
+create table t1 (x int);
+insert t1 values (2);
+--let $outdir= $MYSQL_TMP_DIR/mydumper
+--mkdir $outdir
+--exec $MYDUMPER -o $outdir -B test --debug
+--exec rr record $MYLOADER -d $outdir
+
+show create table t1;
+drop tables t1;

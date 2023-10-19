@@ -1,0 +1,29 @@
+--source include/have_innodb.inc
+
+set names utf8;
+
+create database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+show databases;
+
+create table t1 (x int);
+
+--let $outdir= $MYSQL_TMP_DIR/mydumper
+--mkdir $outdir
+write_file $outdir/omit.txt;
+information_schema
+mtr
+mysql
+performance_schema
+sys
+EOF
+
+--exec $MYDUMPER --set-names utf8 -o $outdir -O $outdir/omit.txt --debug
+
+drop database test;
+drop database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+
+--exec $MYLOADER --set-names utf8 -d $outdir --debug
+show databases;
+drop database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+use test;
+drop table t1;
