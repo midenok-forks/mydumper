@@ -1,0 +1,16 @@
+--source include/have_ssl_communication.inc
+let $ssl_cert= `select @@ssl_cert`;
+let $ssl_key= `select @@ssl_key`;
+let $ssl_ca= `select @@ssl_ca`;
+
+create table t1 (x int);
+insert t1 values (2);
+--let $outdir= $MYSQL_TMP_DIR/mydumper
+--mkdir $outdir
+--exec $MYDUMPER -o $outdir -B test --debug --ssl --ssl-mode=required
+drop table t1;
+
+--exec $MYLOADER -d $outdir --ssl --ssl-mode=required
+
+show create table t1;
+drop tables t1;

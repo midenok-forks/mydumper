@@ -1,0 +1,28 @@
+--source include/have_innodb.inc
+# --source include/have_file_key_management.inc
+
+--echo # Creating table
+# eval set global innodb_compression_algorithm = $alg;
+eval create table t1 (a int, b text $column_params) engine = innodb page_compressed=yes encrypted=yes;
+insert t1 (a, b) values (0, repeat("abc", 100));
+insert t1 (a, b) values (1, repeat("def", 1000));
+insert t1 (a, b) values (2, repeat("ghi", 10000));
+select a, left(b, 9), length(b) from t1;
+
+--echo # xtrabackup backup
+let $targetdir=$MYSQLTEST_VARDIR/tmp/backup;
+
+disable_result_log;
+--mkdir $targetdir
+--exec $MYDUMPER -o $targetdir -B test
+enable_result_log;
+
+--echo # xtrabackup prepare;
+disable_result_log;
+source include/myloader_restore.inc;
+enable_result_log;
+
+show create table t1;
+select a, left(b, 9), length(b) from t1;
+
+drop table t1;
