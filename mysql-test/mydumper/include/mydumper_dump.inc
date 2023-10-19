@@ -1,0 +1,3 @@
+--let $targetdir=$MYSQLTEST_VARDIR/tmp/mydumper
+--mkdir $targetdir
+--exec $MYDUMPER -o $targetdir -B test
