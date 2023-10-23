@@ -25,6 +25,7 @@ void initialize_common();
 gchar *get_ref_table(gchar *k);
 char * determine_filename (char * table);
 char * escape_string(MYSQL *conn, char *str);
+char * backtick_protect(char *r);
 gchar * build_schema_table_filename(char *database, char *table, const char *suffix);
 gchar * build_schema_filename(const char *database, const char *suffix);
 gchar * build_meta_filename(char *database, char *table, const char *suffix);
