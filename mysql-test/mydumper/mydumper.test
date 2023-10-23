@@ -1,0 +1,1643 @@
+--source include/have_innodb.inc
+
+# Selection of cases from mysqldump.test
+
+--echo #
+--echo # Bug#2005 Long decimal comparison bug.
+--echo #
+
+CREATE TABLE t1 (a decimal(64, 20));
+INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
+("0987654321098765432109876543210987654321");
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#2055 mysqldump should replace "-inf" numeric field values with "NULL"
+--echo #
+
+CREATE TABLE t1 (a double);
+INSERT IGNORE INTO t1 VALUES ('-9e999999');
+select * from t1;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#3361 mysqldump quotes DECIMAL values inconsistently
+--echo #
+
+CREATE TABLE t1 (a DECIMAL(10,5), b FLOAT);
+
+# check at first how mysql work with quoted decimal
+
+INSERT INTO t1 VALUES (1.2345, 2.3456);
+INSERT INTO t1 VALUES ('1.2345', 2.3456);
+INSERT INTO t1 VALUES ("1.2345", 2.3456);
+
+SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ANSI_QUOTES';
+INSERT INTO t1 VALUES (1.2345, 2.3456);
+INSERT INTO t1 VALUES ('1.2345', 2.3456);
+--error ER_BAD_FIELD_ERROR
+INSERT INTO t1 VALUES ("1.2345", 2.3456);
+SET SQL_MODE=@OLD_SQL_MODE;
+
+select * from t1;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#1707 mysqldump -X does't quote field and table names
+--echo #
+
+CREATE TABLE t1 (`a"b"` char(2));
+INSERT INTO t1 VALUES ("1\""), ("\"2");
+select * from t1;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#1994 mysqldump does not correctly dump UCS2 data
+--echo # Bug#4261 mysqldump 10.7 (mysql 4.1.2) --skip-extended-insert drops NULL from inserts
+--echo #
+
+CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
+INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5'), (NULL);
+select * from t1;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#2592 mysqldump doesn't quote "tricky" names correctly
+--echo #
+
+create table ```a` (i int);
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show tables;
+drop table ```a`;
+
+--echo #
+--echo # Bug#6101 create database problem
+--echo #
+
+--exec $MYSQL_DUMP --default-character-set=utf8mb4 --skip-comments --databases test
+
+create database mysqldump_test_db character set latin2 collate latin2_bin;
+--let $databases= mysqldump_test_db
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show create database mysqldump_test_db;
+drop database mysqldump_test_db;
+--let $databases=
+
+--echo #
+--echo # Bug#7020 mysqldump --compatible=mysql40 should set --skip-set-charset --default-char...
+--echo # Check that we don't dump in UTF8 in compatible mode by default,
+--echo # but use the default compiled values, or the values given in
+--echo # --default-character-set=xxx. However, we should dump in UTF8
+--echo # if it is explicitly set.
+
+CREATE TABLE t1 (a  CHAR(10));
+INSERT INTO t1  VALUES (_latin1 '√Ñ√ñ√ú√ü');
+select * from t1;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#8830 mysqldump --skip-extended-insert causes --hex-blob to dump wrong values
+--echo #
+
+CREATE TABLE t1 (`b` blob);
+INSERT INTO `t1` VALUES (0x602010000280100005E71A);
+select * from t1;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Test for --insert-ignore
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t1 VALUES (4),(5),(6);
+--let $mydumper_args= --insert-ignore --stream -t 1 --exec-threads=1 -m
+--source include/mydumper_dump_only.inc
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#10286 mysqldump -c crashes on table that has many fields with long
+--echo #           names
+--echo #
+create table t1 (
+ F_c4ca4238a0b923820dcc509a6f75849b int,
+ F_c81e728d9d4c2f636f067f89cc14862c int,
+ F_eccbc87e4b5ce2fe28308fd9f2a7baf3 int,
+ F_a87ff679a2f3e71d9181a67b7542122c int,
+ F_e4da3b7fbbce2345d7772b0674a318d5 int,
+ F_1679091c5a880faf6fb5e6087eb1b2dc int,
+ F_8f14e45fceea167a5a36dedd4bea2543 int,
+ F_c9f0f895fb98ab9159f51fd0297e236d int,
+ F_45c48cce2e2d7fbdea1afc51c7c6ad26 int,
+ F_d3d9446802a44259755d38e6d163e820 int,
+ F_6512bd43d9caa6e02c990b0a82652dca int,
+ F_c20ad4d76fe97759aa27a0c99bff6710 int,
+ F_c51ce410c124a10e0db5e4b97fc2af39 int,
+ F_aab3238922bcc25a6f606eb525ffdc56 int,
+ F_9bf31c7ff062936a96d3c8bd1f8f2ff3 int,
+ F_c74d97b01eae257e44aa9d5bade97baf int,
+ F_70efdf2ec9b086079795c442636b55fb int,
+ F_6f4922f45568161a8cdf4ad2299f6d23 int,
+ F_1f0e3dad99908345f7439f8ffabdffc4 int,
+ F_98f13708210194c475687be6106a3b84 int,
+ F_3c59dc048e8850243be8079a5c74d079 int,
+ F_b6d767d2f8ed5d21a44b0e5886680cb9 int,
+ F_37693cfc748049e45d87b8c7d8b9aacd int,
+ F_1ff1de774005f8da13f42943881c655f int,
+ F_8e296a067a37563370ded05f5a3bf3ec int,
+ F_4e732ced3463d06de0ca9a15b6153677 int,
+ F_02e74f10e0327ad868d138f2b4fdd6f0 int,
+ F_33e75ff09dd601bbe69f351039152189 int,
+ F_6ea9ab1baa0efb9e19094440c317e21b int,
+ F_34173cb38f07f89ddbebc2ac9128303f int,
+ F_c16a5320fa475530d9583c34fd356ef5 int,
+ F_6364d3f0f495b6ab9dcf8d3b5c6e0b01 int,
+ F_182be0c5cdcd5072bb1864cdee4d3d6e int,
+ F_e369853df766fa44e1ed0ff613f563bd int,
+ F_1c383cd30b7c298ab50293adfecb7b18 int,
+ F_19ca14e7ea6328a42e0eb13d585e4c22 int,
+ F_a5bfc9e07964f8dddeb95fc584cd965d int,
+ F_a5771bce93e200c36f7cd9dfd0e5deaa int,
+ F_d67d8ab4f4c10bf22aa353e27879133c int,
+ F_d645920e395fedad7bbbed0eca3fe2e0 int,
+ F_3416a75f4cea9109507cacd8e2f2aefc int,
+ F_a1d0c6e83f027327d8461063f4ac58a6 int,
+ F_17e62166fc8586dfa4d1bc0e1742c08b int,
+ F_f7177163c833dff4b38fc8d2872f1ec6 int,
+ F_6c8349cc7260ae62e3b1396831a8398f int,
+ F_d9d4f495e875a2e075a1a4a6e1b9770f int,
+ F_67c6a1e7ce56d3d6fa748ab6d9af3fd7 int,
+ F_642e92efb79421734881b53e1e1b18b6 int,
+ F_f457c545a9ded88f18ecee47145a72c0 int,
+ F_c0c7c76d30bd3dcaefc96f40275bdc0a int,
+ F_2838023a778dfaecdc212708f721b788 int,
+ F_9a1158154dfa42caddbd0694a4e9bdc8 int,
+ F_d82c8d1619ad8176d665453cfb2e55f0 int,
+ F_a684eceee76fc522773286a895bc8436 int,
+ F_b53b3a3d6ab90ce0268229151c9bde11 int,
+ F_9f61408e3afb633e50cdf1b20de6f466 int,
+ F_72b32a1f754ba1c09b3695e0cb6cde7f int,
+ F_66f041e16a60928b05a7e228a89c3799 int,
+ F_093f65e080a295f8076b1c5722a46aa2 int,
+ F_072b030ba126b2f4b2374f342be9ed44 int,
+ F_7f39f8317fbdb1988ef4c628eba02591 int,
+ F_44f683a84163b3523afe57c2e008bc8c int,
+ F_03afdbd66e7929b125f8597834fa83a4 int,
+ F_ea5d2f1c4608232e07d3aa3d998e5135 int,
+ F_fc490ca45c00b1249bbe3554a4fdf6fb int,
+ F_3295c76acbf4caaed33c36b1b5fc2cb1 int,
+ F_735b90b4568125ed6c3f678819b6e058 int,
+ F_a3f390d88e4c41f2747bfa2f1b5f87db int,
+ F_14bfa6bb14875e45bba028a21ed38046 int,
+ F_7cbbc409ec990f19c78c75bd1e06f215 int,
+ F_e2c420d928d4bf8ce0ff2ec19b371514 int,
+ F_32bb90e8976aab5298d5da10fe66f21d int,
+ F_d2ddea18f00665ce8623e36bd4e3c7c5 int,
+ F_ad61ab143223efbc24c7d2583be69251 int,
+ F_d09bf41544a3365a46c9077ebb5e35c3 int,
+ F_fbd7939d674997cdb4692d34de8633c4 int,
+ F_28dd2c7955ce926456240b2ff0100bde int,
+ F_35f4a8d465e6e1edc05f3d8ab658c551 int,
+ F_d1fe173d08e959397adf34b1d77e88d7 int,
+ F_f033ab37c30201f73f142449d037028d int,
+ F_43ec517d68b6edd3015b3edc9a11367b int,
+ F_9778d5d219c5080b9a6a17bef029331c int,
+ F_fe9fc289c3ff0af142b6d3bead98a923 int,
+ F_68d30a9594728bc39aa24be94b319d21 int,
+ F_3ef815416f775098fe977004015c6193 int,
+ F_93db85ed909c13838ff95ccfa94cebd9 int,
+ F_c7e1249ffc03eb9ded908c236bd1996d int,
+ F_2a38a4a9316c49e5a833517c45d31070 int,
+ F_7647966b7343c29048673252e490f736 int,
+ F_8613985ec49eb8f757ae6439e879bb2a int,
+ F_54229abfcfa5649e7003b83dd4755294 int,
+ F_92cc227532d17e56e07902b254dfad10 int,
+ F_98dce83da57b0395e163467c9dae521b int,
+ F_f4b9ec30ad9f68f89b29639786cb62ef int,
+ F_812b4ba287f5ee0bc9d43bbf5bbe87fb int,
+ F_26657d5ff9020d2abefe558796b99584 int,
+ F_e2ef524fbf3d9fe611d5a8e90fefdc9c int,
+ F_ed3d2c21991e3bef5e069713af9fa6ca int,
+ F_ac627ab1ccbdb62ec96e702f07f6425b int,
+ F_f899139df5e1059396431415e770c6dd int,
+ F_38b3eff8baf56627478ec76a704e9b52 int,
+ F_ec8956637a99787bd197eacd77acce5e int,
+ F_6974ce5ac660610b44d9b9fed0ff9548 int,
+ F_c9e1074f5b3f9fc8ea15d152add07294 int,
+ F_65b9eea6e1cc6bb9f0cd2a47751a186f int,
+ F_f0935e4cd5920aa6c7c996a5ee53a70f int,
+ F_a97da629b098b75c294dffdc3e463904 int,
+ F_a3c65c2974270fd093ee8a9bf8ae7d0b int,
+ F_2723d092b63885e0d7c260cc007e8b9d int,
+ F_5f93f983524def3dca464469d2cf9f3e int,
+ F_698d51a19d8a121ce581499d7b701668 int,
+ F_7f6ffaa6bb0b408017b62254211691b5 int,
+ F_73278a4a86960eeb576a8fd4c9ec6997 int,
+ F_5fd0b37cd7dbbb00f97ba6ce92bf5add int,
+ F_2b44928ae11fb9384c4cf38708677c48 int,
+ F_c45147dee729311ef5b5c3003946c48f int,
+ F_eb160de1de89d9058fcb0b968dbbbd68 int,
+ F_5ef059938ba799aaa845e1c2e8a762bd int,
+ F_07e1cd7dca89a1678042477183b7ac3f int,
+ F_da4fb5c6e93e74d3df8527599fa62642 int,
+ F_4c56ff4ce4aaf9573aa5dff913df997a int,
+ F_a0a080f42e6f13b3a2df133f073095dd int,
+ F_202cb962ac59075b964b07152d234b70 int,
+ F_c8ffe9a587b126f152ed3d89a146b445 int,
+ F_3def184ad8f4755ff269862ea77393dd int,
+ F_069059b7ef840f0c74a814ec9237b6ec int,
+ F_ec5decca5ed3d6b8079e2e7e7bacc9f2 int,
+ F_76dc611d6ebaafc66cc0879c71b5db5c int,
+ F_d1f491a404d6854880943e5c3cd9ca25 int,
+ F_9b8619251a19057cff70779273e95aa6 int,
+ F_1afa34a7f984eeabdbb0a7d494132ee5 int,
+ F_65ded5353c5ee48d0b7d48c591b8f430 int,
+ F_9fc3d7152ba9336a670e36d0ed79bc43 int,
+ F_02522a2b2726fb0a03bb19f2d8d9524d int,
+ F_7f1de29e6da19d22b51c68001e7e0e54 int,
+ F_42a0e188f5033bc65bf8d78622277c4e int,
+ F_3988c7f88ebcb58c6ce932b957b6f332 int,
+ F_013d407166ec4fa56eb1e1f8cbe183b9 int,
+ F_e00da03b685a0dd18fb6a08af0923de0 int,
+ F_1385974ed5904a438616ff7bdb3f7439 int,
+ F_0f28b5d49b3020afeecd95b4009adf4c int,
+ F_a8baa56554f96369ab93e4f3bb068c22 int,
+ F_903ce9225fca3e988c2af215d4e544d3 int,
+ F_0a09c8844ba8f0936c20bd791130d6b6 int,
+ F_2b24d495052a8ce66358eb576b8912c8 int,
+ F_a5e00132373a7031000fd987a3c9f87b int,
+ F_8d5e957f297893487bd98fa830fa6413 int,
+ F_47d1e990583c9c67424d369f3414728e int,
+ F_f2217062e9a397a1dca429e7d70bc6ca int,
+ F_7ef605fc8dba5425d6965fbd4c8fbe1f int,
+ F_a8f15eda80c50adb0e71943adc8015cf int,
+ F_37a749d808e46495a8da1e5352d03cae int,
+ F_b3e3e393c77e35a4a3f3cbd1e429b5dc int,
+ F_1d7f7abc18fcb43975065399b0d1e48e int,
+ F_2a79ea27c279e471f4d180b08d62b00a int,
+ F_1c9ac0159c94d8d0cbedc973445af2da int,
+ F_6c4b761a28b734fe93831e3fb400ce87 int,
+ F_06409663226af2f3114485aa4e0a23b4 int,
+ F_140f6969d5213fd0ece03148e62e461e int,
+ F_b73ce398c39f506af761d2277d853a92 int,
+ F_bd4c9ab730f5513206b999ec0d90d1fb int,
+ F_82aa4b0af34c2313a562076992e50aa3 int,
+ F_0777d5c17d4066b82ab86dff8a46af6f int,
+ F_fa7cdfad1a5aaf8370ebeda47a1ff1c3 int,
+ F_9766527f2b5d3e95d4a733fcfb77bd7e int,
+ F_7e7757b1e12abcb736ab9a754ffb617a int,
+ F_5878a7ab84fb43402106c575658472fa int,
+ F_006f52e9102a8d3be2fe5614f42ba989 int,
+ F_3636638817772e42b59d74cff571fbb3 int,
+ F_149e9677a5989fd342ae44213df68868 int,
+ F_a4a042cf4fd6bfb47701cbc8a1653ada int,
+ F_1ff8a7b5dc7a7d1f0ed65aaa29c04b1e int,
+ F_f7e6c85504ce6e82442c770f7c8606f0 int,
+ F_bf8229696f7a3bb4700cfddef19fa23f int,
+ F_82161242827b703e6acf9c726942a1e4 int,
+ F_38af86134b65d0f10fe33d30dd76442e int,
+ F_96da2f590cd7246bbde0051047b0d6f7 int,
+ F_8f85517967795eeef66c225f7883bdcb int,
+ F_8f53295a73878494e9bc8dd6c3c7104f int,
+ F_045117b0e0a11a242b9765e79cbf113f int,
+ F_fc221309746013ac554571fbd180e1c8 int,
+ F_4c5bde74a8f110656874902f07378009 int,
+ F_cedebb6e872f539bef8c3f919874e9d7 int,
+ F_6cdd60ea0045eb7a6ec44c54d29ed402 int,
+ F_eecca5b6365d9607ee5a9d336962c534 int,
+ F_9872ed9fc22fc182d371c3e9ed316094 int,
+ F_31fefc0e570cb3860f2a6d4b38c6490d int,
+ F_9dcb88e0137649590b755372b040afad int,
+ F_a2557a7b2e94197ff767970b67041697 int,
+ F_cfecdb276f634854f3ef915e2e980c31 int,
+ F_0aa1883c6411f7873cb83dacb17b0afc int,
+ F_58a2fc6ed39fd083f55d4182bf88826d int,
+ F_bd686fd640be98efaae0091fa301e613 int,
+ F_a597e50502f5ff68e3e25b9114205d4a int,
+ F_0336dcbab05b9d5ad24f4333c7658a0e int,
+ F_084b6fbb10729ed4da8c3d3f5a3ae7c9 int,
+ F_85d8ce590ad8981ca2c8286f79f59954 int,
+ F_0e65972dce68dad4d52d063967f0a705 int,
+ F_84d9ee44e457ddef7f2c4f25dc8fa865 int,
+ F_3644a684f98ea8fe223c713b77189a77 int,
+ F_757b505cfd34c64c85ca5b5690ee5293 int,
+ F_854d6fae5ee42911677c739ee1734486 int,
+ F_e2c0be24560d78c5e599c2a9c9d0bbd2 int,
+ F_274ad4786c3abca69fa097b85867d9a4 int,
+ F_eae27d77ca20db309e056e3d2dcd7d69 int,
+ F_7eabe3a1649ffa2b3ff8c02ebfd5659f int,
+ F_69adc1e107f7f7d035d7baf04342e1ca int,
+ F_091d584fced301b442654dd8c23b3fc9 int,
+ F_b1d10e7bafa4421218a51b1e1f1b0ba2 int,
+ F_6f3ef77ac0e3619e98159e9b6febf557 int,
+ F_eb163727917cbba1eea208541a643e74 int,
+ F_1534b76d325a8f591b52d302e7181331 int,
+ F_979d472a84804b9f647bc185a877a8b5 int,
+ F_ca46c1b9512a7a8315fa3c5a946e8265 int,
+ F_3b8a614226a953a8cd9526fca6fe9ba5 int,
+ F_45fbc6d3e05ebd93369ce542e8f2322d int,
+ F_63dc7ed1010d3c3b8269faf0ba7491d4 int,
+ F_e96ed478dab8595a7dbda4cbcbee168f int,
+ F_c0e190d8267e36708f955d7ab048990d int,
+ F_ec8ce6abb3e952a85b8551ba726a1227 int,
+ F_060ad92489947d410d897474079c1477 int,
+ F_bcbe3365e6ac95ea2c0343a2395834dd int,
+ F_115f89503138416a242f40fb7d7f338e int,
+ F_13fe9d84310e77f13a6d184dbf1232f3 int,
+ F_d1c38a09acc34845c6be3a127a5aacaf int,
+ F_9cfdf10e8fc047a44b08ed031e1f0ed1 int,
+ F_705f2172834666788607efbfca35afb3 int,
+ F_74db120f0a8e5646ef5a30154e9f6deb int,
+ F_57aeee35c98205091e18d1140e9f38cf int,
+ F_6da9003b743b65f4c0ccd295cc484e57 int,
+ F_9b04d152845ec0a378394003c96da594 int,
+ F_be83ab3ecd0db773eb2dc1b0a17836a1 int,
+ F_e165421110ba03099a1c0393373c5b43 int,
+ F_289dff07669d7a23de0ef88d2f7129e7 int,
+ F_577ef1154f3240ad5b9b413aa7346a1e int,
+ F_01161aaa0b6d1345dd8fe4e481144d84 int,
+ F_539fd53b59e3bb12d203f45a912eeaf2 int,
+ F_ac1dd209cbcc5e5d1c6e28598e8cbbe8 int,
+ F_555d6702c950ecb729a966504af0a635 int,
+ F_335f5352088d7d9bf74191e006d8e24c int,
+ F_f340f1b1f65b6df5b5e3f94d95b11daf int,
+ F_e4a6222cdb5b34375400904f03d8e6a5 int,
+ F_cb70ab375662576bd1ac5aaf16b3fca4 int,
+ F_9188905e74c28e489b44e954ec0b9bca int,
+ F_0266e33d3f546cb5436a10798e657d97 int,
+ F_38db3aed920cf82ab059bfccbd02be6a int,
+ F_3cec07e9ba5f5bb252d13f5f431e4bbb int,
+ F_621bf66ddb7c962aa0d22ac97d69b793 int,
+ F_077e29b11be80ab57e1a2ecabb7da330 int,
+ F_6c9882bbac1c7093bd25041881277658 int,
+ F_19f3cd308f1455b3fa09a282e0d496f4 int,
+ F_03c6b06952c750899bb03d998e631860 int,
+ F_c24cd76e1ce41366a4bbe8a49b02a028 int,
+ F_c52f1bd66cc19d05628bd8bf27af3ad6 int,
+ F_fe131d7f5a6b38b23cc967316c13dae2 int,
+ F_f718499c1c8cef6730f9fd03c8125cab int,
+ F_d96409bf894217686ba124d7356686c9 int,
+ F_502e4a16930e414107ee22b6198c578f int,
+ F_cfa0860e83a4c3a763a7e62d825349f7 int,
+ F_a4f23670e1833f3fdb077ca70bbd5d66 int,
+ F_b1a59b315fc9a3002ce38bbe070ec3f5 int,
+ F_36660e59856b4de58a219bcf4e27eba3 int,
+ F_8c19f571e251e61cb8dd3612f26d5ecf int,
+ F_d6baf65e0b240ce177cf70da146c8dc8 int,
+ F_e56954b4f6347e897f954495eab16a88 int,
+ F_f7664060cc52bc6f3d620bcedc94a4b6 int,
+ F_eda80a3d5b344bc40f3bc04f65b7a357 int,
+ F_8f121ce07d74717e0b1f21d122e04521 int,
+ F_06138bc5af6023646ede0e1f7c1eac75 int,
+ F_39059724f73a9969845dfe4146c5660e int,
+ F_7f100b7b36092fb9b06dfb4fac360931 int,
+ F_7a614fd06c325499f1680b9896beedeb int,
+ F_4734ba6f3de83d861c3176a6273cac6d int,
+ F_d947bf06a885db0d477d707121934ff8 int,
+ F_63923f49e5241343aa7acb6a06a751e7 int,
+ F_db8e1af0cb3aca1ae2d0018624204529 int,
+ F_20f07591c6fcb220ffe637cda29bb3f6 int,
+ F_07cdfd23373b17c6b337251c22b7ea57 int,
+ F_d395771085aab05244a4fb8fd91bf4ee int,
+ F_92c8c96e4c37100777c7190b76d28233 int,
+ F_e3796ae838835da0b6f6ea37bcf8bcb7 int,
+ F_6a9aeddfc689c1d0e3b9ccc3ab651bc5 int,
+ F_0f49c89d1e7298bb9930789c8ed59d48 int,
+ F_46ba9f2a6976570b0353203ec4474217 int,
+ F_0e01938fc48a2cfb5f2217fbfb00722d int,
+ F_16a5cdae362b8d27a1d8f8c7b78b4330 int,
+ F_918317b57931b6b7a7d29490fe5ec9f9 int,
+ F_48aedb8880cab8c45637abc7493ecddd int,
+ F_839ab46820b524afda05122893c2fe8e int,
+ F_f90f2aca5c640289d0a29417bcb63a37 int,
+ F_9c838d2e45b2ad1094d42f4ef36764f6 int,
+ F_1700002963a49da13542e0726b7bb758 int,
+ F_53c3bce66e43be4f209556518c2fcb54 int,
+ F_6883966fd8f918a4aa29be29d2c386fb int,
+ F_49182f81e6a13cf5eaa496d51fea6406 int,
+ F_d296c101daa88a51f6ca8cfc1ac79b50 int,
+ F_9fd81843ad7f202f26c1a174c7357585 int,
+ F_26e359e83860db1d11b6acca57d8ea88 int,
+ F_ef0d3930a7b6c95bd2b32ed45989c61f int,
+ F_94f6d7e04a4d452035300f18b984988c int,
+ F_34ed066df378efacc9b924ec161e7639 int,
+ F_577bcc914f9e55d5e4e4f82f9f00e7d4 int,
+ F_11b9842e0a271ff252c1903e7132cd68 int,
+ F_37bc2f75bf1bcfe8450a1a41c200364c int,
+ F_496e05e1aea0a9c4655800e8a7b9ea28 int,
+ F_b2eb7349035754953b57a32e2841bda5 int,
+ F_8e98d81f8217304975ccb23337bb5761 int,
+ F_a8c88a0055f636e4a163a5e3d16adab7 int,
+ F_eddea82ad2755b24c4e168c5fc2ebd40 int,
+ F_06eb61b839a0cefee4967c67ccb099dc int,
+ F_9dfcd5e558dfa04aaf37f137a1d9d3e5 int,
+ F_950a4152c2b4aa3ad78bdd6b366cc179 int,
+ F_158f3069a435b314a80bdcb024f8e422 int,
+ F_758874998f5bd0c393da094e1967a72b int,
+ F_ad13a2a07ca4b7642959dc0c4c740ab6 int,
+ F_3fe94a002317b5f9259f82690aeea4cd int,
+ F_5b8add2a5d98b1a652ea7fd72d942dac int,
+ F_432aca3a1e345e339f35a30c8f65edce int,
+ F_8d3bba7425e7c98c50f52ca1b52d3735 int,
+ F_320722549d1751cf3f247855f937b982 int,
+ F_caf1a3dfb505ffed0d024130f58c5cfa int,
+ F_5737c6ec2e0716f3d8a7a5c4e0de0d9a int,
+ F_bc6dc48b743dc5d013b1abaebd2faed2 int,
+ F_f2fc990265c712c49d51a18a32b39f0c int,
+ F_89f0fd5c927d466d6ec9a21b9ac34ffa int,
+ F_a666587afda6e89aec274a3657558a27 int,
+ F_b83aac23b9528732c23cc7352950e880 int,
+ F_cd00692c3bfe59267d5ecfac5310286c int,
+ F_6faa8040da20ef399b63a72d0e4ab575 int,
+ F_fe73f687e5bc5280214e0486b273a5f9 int);
+insert into t1 (F_8d3bba7425e7c98c50f52ca1b52d3735) values (1);
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show create table t1;
+drop table t1;
+
+--echo #
+--echo # Bug#12123 mysqldump --tab results in text file which can't be imported
+--echo #
+
+create table t1 (a text character set utf8, b text character set latin1);
+insert t1 values (0x4F736E616272C3BC636B, 0x4BF66C6E);
+select * from t1;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from t1;
+
+drop table t1;
+
+--echo #
+--echo # Bug#13926 --order-by-primary fails if PKEY contains quote character
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `a b` INT,
+  `c"d` INT,
+  `e``f` INT,
+  PRIMARY KEY (`a b`, `c"d`, `e``f`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+insert into t1 values (0815, 4711, 2006);
+
+--let $mydumper_args= --order-by-primary
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show create table t1;
+select * from t1;
+DROP TABLE `t1`;
+--enable_warnings
+
+--echo #
+--echo # Bug#10213 mysqldump crashes when dumping VIEWs(on MacOS X)
+--echo #
+
+create database db1;
+use db1;
+
+CREATE TABLE t2 (
+  a varchar(30) default NULL,
+  KEY a (a(5))
+);
+
+INSERT INTO t2 VALUES ('alfred');
+INSERT INTO t2 VALUES ('angie');
+INSERT INTO t2 VALUES ('bingo');
+INSERT INTO t2 VALUES ('waffle');
+INSERT INTO t2 VALUES ('lemon');
+create view v2 as select * from t2 where a like 'a%' with check option;
+--let $databases= db1
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+use db1;
+show create table t2;
+show create view v2;
+select * from t2;
+drop table t2;
+drop view v2;
+drop database db1;
+use test;
+
+--echo #
+--echo # Bug#9756 mysql client failing on dumps containing certain \ sequences
+--echo #
+
+CREATE TABLE t1 (a char(20));
+INSERT INTO t1 VALUES ('\'\\\n`\"');
+select * from t1;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#10927 mysqldump: Can't reload dump with view that consist of other view
+--echo #
+
+create table t1(a int, b int, c varchar(30));
+
+insert into t1 values(1, 2, "one"), (2, 4, "two"), (3, 6, "three");
+
+create view v3 as
+select * from t1;
+
+create  view v1 as
+select * from v3 where b in (1, 2, 3, 4, 5, 6, 7);
+
+create  view v2 as
+select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
+
+show create view v1;
+show create view v2;
+show create view v3;
+
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show create view v1;
+show create view v2;
+show create view v3;
+
+drop view v1, v2, v3;
+drop table t1;
+
+--echo #
+--echo # Test for dumping triggers
+--echo #
+
+CREATE TABLE t1 (a int, b bigint default NULL);
+CREATE TABLE t2 (a int);
+delimiter |;
+create trigger trg1 before insert on t1 for each row
+begin
+  if new.a > 10 then
+    set new.a := 10;
+    set new.a := 11;
+  end if;
+end|
+create trigger trg2 before update on t1 for each row begin
+  if old.a % 2 = 0 then set new.b := 12; end if;
+end|
+set sql_mode="traditional"|
+create trigger trg3 after update on t1 for each row
+begin
+  if new.a = -1 then
+    set @fired:= "Yes";
+  end if;
+end|
+create trigger trg4 before insert on t2 for each row
+begin
+  if new.a > 10 then
+    set @fired:= "No";
+  end if;
+end|
+set sql_mode=default|
+delimiter ;|
+--replace_column 6 '0000-00-00 00:00:00'
+show triggers like "t1";
+INSERT INTO t1 (a) VALUES (1),(2),(3),(22);
+update t1 set a = 4 where a=3;
+# Triggers should be dumped by default
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show tables;
+--replace_column 6 #
+show triggers;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Test of fix to Bug#13146 ansi quotes break loading of triggers
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS `t1 test`;
+DROP TABLE IF EXISTS `t2 test`;
+--enable_warnings
+
+CREATE TABLE `t1 test` (
+  `a1` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE `t2 test` (
+  `a2` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+DELIMITER //;
+CREATE TRIGGER `test trig` BEFORE INSERT ON `t1 test` FOR EACH ROW BEGIN
+INSERT INTO `t2 test` SET a2 = NEW.a1; END  //
+DELIMITER ;//
+
+INSERT INTO `t1 test` VALUES (1);
+INSERT INTO `t1 test` VALUES (2);
+INSERT INTO `t1 test` VALUES (3);
+SELECT * FROM `t2 test`;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+--replace_column 6 #
+show triggers;
+
+DROP TRIGGER `test trig`;
+DROP TABLE `t1 test`;
+DROP TABLE `t2 test`;
+
+--echo #
+--echo # Bug#12838 mysqldump -x with views exits with error
+--echo #
+
+create table t1 (a int, b varchar(32), c varchar(32));
+insert into t1 values (1, 'first value', 'xxxx');
+insert into t1 values (2, 'second value', 'tttt');
+insert into t1 values (3, 'third value', 'vvv vvv');
+
+create view v1 as select * from t1;
+create view v0 as select * from v1;
+create view v2 as select * from v0;
+
+select * from v2;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from v2;
+
+show create view v1;
+show create view v0;
+show create view v2;
+
+drop view v2;
+drop view v0;
+drop view v1;
+drop table t1;
+
+--echo #
+--echo # Bug#14554 mysqldump does not separate words "ROW" and "BEGIN"
+--echo # for tables with trigger created in the IGNORE_SPACE sql mode.
+--echo #
+
+SET @old_sql_mode = @@SQL_MODE;
+SET SQL_MODE = IGNORE_SPACE;
+
+CREATE TABLE t1 (a INT);
+DELIMITER |;
+CREATE TRIGGER tr1 BEFORE INSERT ON t1
+       FOR EACH ROW
+       BEGIN
+         SET new.a = 0;
+       END|
+DELIMITER ;|
+
+SET SQL_MODE = @old_sql_mode;
+
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+--replace_column 6 #
+show triggers;
+
+DROP TRIGGER tr1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#13318 Bad result with empty field and --hex-blob
+--echo #
+
+create table t1 (a binary(1), b blob);
+insert into t1 values ('','');
+select * from t1;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from t1;
+drop table t1;
+
+--echo #
+--echo # Bug#14871 Invalid view dump output
+--echo #
+
+create table t1 (a int);
+insert into t1 values (289), (298), (234), (456), (789);
+create definer = CURRENT_USER view v1 as select * from t1;
+create SQL SECURITY INVOKER view v2 as select * from t1;
+create view v3 as select * from t1 with local check option;
+create algorithm=merge view v4 as select * from t1 with cascaded check option;
+create algorithm =temptable view v5 as select * from t1;
+
+select * from v3 order by a;
+
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+
+# check that all tables and views could be created
+show tables;
+select * from v3 order by a;
+
+drop table t1;
+drop view v1, v2, v3, v4, v5;
+
+--echo #
+--echo # Bug#16878 dump of trigger
+--echo #
+
+create table t1 (a int, created datetime);
+create table t2 (b int, created datetime);
+create trigger tr1 before insert on t1 for each row set
+new.created=now();
+delimiter |;
+create trigger tr2 after insert on t1
+for each row
+begin
+  insert into t2 set b=new.a and created=new.created;
+end|
+delimiter ;|
+
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+
+--replace_column 6 #
+show triggers;
+drop trigger tr1;
+drop trigger tr2;
+drop table t1, t2;
+
+--echo #
+--echo # Bug#18462 mysqldump does not dump view structures correctly
+--echo #
+
+create table t (qty int, price int);
+insert into t values(3, 50);
+insert into t values(5, 51);
+create view v1 as select qty, price, qty*price as value from t;
+create view v2 as select qty from v1;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show create view v1;
+show create view v2;
+drop view v1;
+drop view v2;
+drop table t;
+
+--echo #
+--echo # Bug#14857 Reading dump files with single statement stored routines fails.
+--echo # fixed by patch for Bug#16878
+--echo #
+
+DELIMITER |;
+/*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
+return 42 */|
+/*!50003 CREATE PROCEDURE `p`()
+select 42 */|
+DELIMITER ;|
+show create function f;
+show create procedure p;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show create function f;
+show create procedure p;
+drop function f;
+drop procedure p;
+
+# FIXME: CONTRIB-16
+if (0)
+{
+--echo #
+--echo # Bug#17371 Unable to dump a schema with invalid views
+--echo #
+
+create table t1 ( id serial );
+create view v1 as select * from t1;
+drop table t1;
+--source include/mydumper_dump.inc
+create table t1 ( id serial );
+--source include/myloader_restore.inc
+drop view v1;
+}
+
+--echo #
+--echo # Bug#21014 Segmentation fault of mysqldump on view
+--echo #
+
+create database mysqldump_tables;
+use mysqldump_tables;
+create table basetable ( id serial, tag varchar(64) );
+
+create database mysqldump_views;
+use mysqldump_views;
+create view nasishnasifu as select mysqldump_tables.basetable.id from mysqldump_tables.basetable;
+
+--let $databases= mysqldump_views mysqldump_tables
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+
+show create view mysqldump_views.nasishnasifu;
+drop view mysqldump_views.nasishnasifu;
+drop database mysqldump_views;
+drop table mysqldump_tables.basetable;
+drop database mysqldump_tables;
+
+--echo #
+--echo # Bug#20221 Dumping of multiple databases containing view(s) yields maleformed dumps
+--echo #
+
+create database mysqldump_dba;
+use mysqldump_dba;
+create table t1 (f1 int, f2 int);
+insert into t1 values (1,1);
+create view v1 as select f1, f2 from t1;
+
+create database mysqldump_dbb;
+use mysqldump_dbb;
+create table t1 (f1 int, f2 int);
+insert into t1 values (2,2);
+create view v1 as select f1, f2 from t1;
+
+--let $databases= mysqldump_dba mysqldump_dbb
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+
+select * from mysqldump_dba.v1;
+select * from mysqldump_dbb.v1;
+
+use mysqldump_dba;
+drop view v1;
+drop table t1;
+drop database mysqldump_dba;
+use mysqldump_dbb;
+drop view v1;
+drop table t1;
+drop database mysqldump_dbb;
+use test;
+
+
+# FIXME: this breaks check-testcase
+if (0)
+{
+--echo #
+--echo # Bug#21424 mysqldump failing to export/import views
+--echo #
+
+# Do as root
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection root;
+create database mysqldump_myDB;
+use mysqldump_myDB;
+create user myDB_User@localhost;
+grant create, create view, select, insert on mysqldump_myDB.* to myDB_User@localhost;
+create table t1 (c1 int);
+insert into t1 values (3);
+
+# Do as a user
+connect (user1,localhost,myDB_User,,mysqldump_myDB,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection user1;
+use mysqldump_myDB;
+create table u1 (f1 int);
+insert into u1 values (4);
+create view v1 (c1) as select * from t1;
+
+write_file $MYSQL_TMP_DIR/omit.txt;
+mysql.general_log
+mysql.slow_log
+mysql.transaction_registry
+EOF
+
+connection root;
+show grants for myDB_User@localhost;
+--let $databases= mysqldump_myDB mysql
+--let $mydumper_args= -O $MYSQL_TMP_DIR/omit.txt
+--source include/mydumper_dump.inc
+--let $myloader_args= --overwrite-tables
+--let $myloader_keep_dir= 1
+--source include/myloader_restore.inc
+--remove_file $MYSQL_TMP_DIR/omit.txt
+
+show grants for myDB_User@localhost;
+
+use mysqldump_myDB;
+drop view v1;
+drop table t1;
+drop table u1;
+revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
+drop user myDB_User@localhost;
+drop database mysqldump_myDB;
+flush privileges;
+
+--let $myloader_args= --overwrite-tables
+--source include/myloader_restore.inc
+flush privileges;
+
+show grants for myDB_User@localhost;
+
+# Do as a user
+connection user1;
+use mysqldump_myDB;
+
+# Ultimate test for correct data.
+select * from mysqldump_myDB.v1;
+select * from mysqldump_myDB.u1;
+
+# Final cleanup.
+connection root;
+disconnect user1;
+use mysqldump_myDB;
+drop view v1;
+drop table t1;
+drop table u1;
+revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
+drop user myDB_User@localhost;
+drop database mysqldump_myDB;
+connection default;
+disconnect root;
+use test;
+}
+
+--echo #
+--echo # Bug #21527 mysqldump incorrectly tries to LOCK TABLES on the
+--echo # information_schema database.
+--echo #
+--echo # Bug #33762: mysqldump can not dump INFORMATION_SCHEMA
+--echo #
+--let $databases= information_schema
+--source include/mydumper_dump.inc
+--rmdir $targetdir
+--let $databases=
+
+--echo #
+--echo # Bug#26346 stack + buffer overrun in mysqldump
+--echo #
+
+CREATE TABLE t1(a int, b int);
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+
+--let $targetdir=$MYSQLTEST_VARDIR/tmp/mydumper
+--mkdir $targetdir
+
+# too long a file path causes an error
+--exec $MYDUMPER -o $targetdir --no-locks -B test --tables-list=test.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+--rmdir $targetdir
+--mkdir $targetdir
+--exec $MYDUMPER -o $targetdir --no-locks -B test --tables-list=test.t1 --fields-terminated-by=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+--rmdir $targetdir
+--mkdir $targetdir
+
+--error 1
+--exec $MYDUMPER -o $targetdir --no-locks -B test --tables-list=test.t1 --fields-enclosed-by=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+--error 1
+--exec $MYDUMPER -o $targetdir --no-locks -B test --tables-list=test.t1 --fields-optionally-enclosed-by=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+--exec $MYDUMPER -o $targetdir --no-locks -B test --tables-list=test.t1 --fields-escaped-by=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+--rmdir $targetdir
+--mkdir $targetdir
+
+--exec $MYDUMPER -o $targetdir --no-locks -B test --tables-list=test.t1 --lines-terminated-by=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+--rmdir $targetdir
+
+DROP TABLE t1;
+
+# FIXME: this doesn't work. How this should work?
+if (0)
+{
+--echo #
+--echo # Bug#27293 mysqldump crashes when dumping routines
+--echo #           defined by a different user
+--echo #
+--echo # Bug#22761 mysqldump reports no errors when using
+--echo #           --routines without mysql.proc privileges
+--echo #
+
+create database mysqldump_test_db;
+
+create user user1;
+create user user2;
+grant all privileges on mysqldump_test_db.*  to user1;
+grant all privileges on mysqldump_test_db.*  to user2;
+
+connect (user27293,localhost,user1,,mysqldump_test_db,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection user27293;
+
+create procedure mysqldump_test_db.sp1() select 'hello';
+
+--let $targetdir=$MYSQLTEST_VARDIR/tmp/mydumper
+--mkdir $targetdir
+
+--error 1
+--exec $MYDUMPER -o $targetdir --no-locks -B mysqldump_test_db --routines --user=user2 --password=
+
+--exec $MYDUMPER -o $targetdir --no-locks -B mysqldump_test_db --routines --user=user1 --password=
+
+drop procedure sp1;
+
+connection default;
+disconnect user27293;
+drop user user1;
+drop user user2;
+
+drop database mysqldump_test_db;
+}
+
+--echo #
+--echo # Bug#28522 buffer overrun by '\0' byte using --hex-blob.
+--echo #
+
+CREATE TABLE t1 (c1 INT, c2 LONGBLOB);
+INSERT INTO t1 SET c1=11, c2=REPEAT('q',509);
+show create table t1;
+--let $mydumper_args= --hex-blob
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show create table t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#29788 mysqldump discards the NO_AUTO_VALUE_ON_ZERO value of
+--echo #           the SQL_MODE variable after the dumping of triggers.
+--echo #
+
+CREATE TABLE t1 (c1 INT);
+# CREATE TRIGGER t1bd BEFORE DELETE ON t1 FOR EACH ROW BEGIN END;
+
+CREATE TABLE t2 (c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+SET @TMP_SQL_MODE = @@SQL_MODE;
+SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
+INSERT INTO t2 VALUES (0), (1), (2);
+SET SQL_MODE = @TMP_SQL_MODE;
+SELECT * FROM t2;
+
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+SELECT * FROM t2;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #42635: mysqldump includes views that were excluded using
+--echo #   the --ignore-table option
+--echo #
+
+create database db42635;
+use db42635;
+create table t1 (id int);
+create view db42635.v1 (c) as select * from db42635.t1;
+create view db42635.v2 (c) as select * from db42635.t1;
+write_file $MYSQL_TMP_DIR/omit.txt;
+db42635.v1
+EOF
+--let $databases= db42635
+--let $mydumper_args= -O $MYSQL_TMP_DIR/omit.txt
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+use db42635;
+show tables;
+drop database db42635;
+use test;
+--remove_file $MYSQL_TMP_DIR/omit.txt
+
+# Check new --replace option
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1(a int, b int);
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t1 VALUES (2,3);
+INSERT INTO t1 VALUES (3,4), (4,5);
+--let $mydumper_args= --replace
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#16853 mysqldump doesn't show events
+--echo #
+
+set time_zone = 'UTC';
+
+## prove one works (with spaces and tabs on the end)
+create event ee1 on schedule at '2035-12-31 20:01:23' do set @a=5;
+show events;
+show create event ee1;
+--let $mydumper_args= --events
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show events;
+show create event ee1;
+
+## prove three works (with spaces and tabs on the end)
+# start with one from the previous restore
+create event ee2 on schedule at '2030-12-31 21:01:22' do set @a=5;
+create event ee3 on schedule at '2030-12-31 22:01:23' do set @a=5;
+show events;
+--let $mydumper_args= --events
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show events;
+
+# revert back to normal settings
+set time_zone = 'SYSTEM';
+
+--echo #
+--echo # Bug#30027 mysqldump does not dump views properly.
+--echo #
+
+CREATE DATABASE mysqldump_test_db;
+set names koi8r;
+CREATE VIEW mysqldump_test_db.v2 AS SELECT 1 AS ÀœÃœŒÀ¡1;
+CREATE VIEW mysqldump_test_db.v1 AS SELECT ÀœÃœŒÀ¡1 FROM mysqldump_test_db.v2;
+
+--let $databases= mysqldump_test_db
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+
+set names utf8;
+SHOW CREATE VIEW mysqldump_test_db.v1;
+SHOW CREATE VIEW mysqldump_test_db.v2;
+
+set names latin1;
+DROP DATABASE mysqldump_test_db;
+
+--echo #
+--echo # Bug#31113 mysqldump 5.1 can't handle a dash ("-") in database names
+--echo #
+create database `test-database`;
+use `test-database`;
+create table test (a int);
+--let $databases= test-database
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+use `test-database`;
+show tables;
+drop database `test-database`;
+use test;
+
+--echo #
+--echo # Bug #53088: mysqldump with -T & --default-character-set set
+--echo #             truncates text/blob to 766 chars
+--echo #
+--echo # Also see outfile_loaddata.test
+--echo #
+
+create table t1 (a blob) charset latin1;
+let $length= 800;
+--eval insert into t1 values (repeat('.', $length))
+--let $mydumper_args= --load-data --hex-blob
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show create table t1;
+select length(a) from t1;
+--let $mydumper_args= --load-data
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select length(a) from t1;
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select length(a) from t1;
+drop table t1;
+
+--echo #
+--echo # BUG#11766310 : 59398: MYSQLDUMP 5.1 CAN'T HANDLE A DASH ("-") IN
+--echo #                DATABASE NAMES IN ALTER DATABASE
+--echo #
+
+CREATE DATABASE `test-database`;
+USE `test-database`;
+CREATE TABLE `test` (`c1` VARCHAR(10)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+DELIMITER |;
+CREATE TRIGGER `trig` BEFORE INSERT ON `test` FOR EACH ROW BEGIN
+END |
+DELIMITER ;|
+
+ALTER DATABASE `test-database` CHARACTER SET latin1 COLLATE latin1_swedish_ci;
+ALTER DATABASE `test-database` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
+
+--let $databases= test-database
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+USE `test-database`;
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.\d+)?/TIMESTAMP/
+show create trigger trig;
+
+DROP DATABASE `test-database`;
+# Switching back to test database.
+USE test;
+
+--echo #
+--echo # BUG#11760384 : 52792: mysqldump in XML mode does not dump routines.
+--echo #
+CREATE DATABASE BUG52792;
+USE BUG52792;
+CREATE TABLE t1 (c1 INT, c2 VARCHAR(20));
+CREATE TABLE t2 (c1 INT);
+INSERT INTO t1 VALUES (1, 'aaa'), (2, 'bbb'), (3, 'ccc');
+INSERT INTO t2 VALUES (1),(2),(3);
+
+--echo # Stored Procedures.
+
+DELIMITER //;
+CREATE PROCEDURE simpleproc1 (OUT param1 INT)
+BEGIN
+  SELECT COUNT(*) INTO param1 FROM t1;
+END//
+DELIMITER ;//
+
+DELIMITER //;
+CREATE PROCEDURE simpleproc2 (OUT param1 INT)
+BEGIN
+  SELECT COUNT(*) INTO param1 FROM t2;
+END//
+DELIMITER ;//
+
+--echo # Events.
+
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE BUG52792;
+CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE BUG52792;
+
+--echo # Functions.
+
+CREATE FUNCTION `hello1` (s CHAR(20))
+  RETURNS CHAR(50) DETERMINISTIC
+RETURN CONCAT('Hello, ' ,s ,'!');
+
+CREATE FUNCTION `hello2` (s CHAR(20))
+    RETURNS CHAR(50) DETERMINISTIC
+RETURN CONCAT(']]>, ' , s ,'!');
+
+--echo # Triggers.
+
+DELIMITER |;
+CREATE TRIGGER trig1 BEFORE INSERT ON t2
+  FOR EACH ROW BEGIN
+    INSERT INTO t2 VALUES(1);
+END;
+|
+DELIMITER ;|
+
+DELIMITER |;
+CREATE TRIGGER trig2 AFTER INSERT ON t2
+  FOR EACH ROW BEGIN
+    INSERT INTO t2 VALUES(1, ']]>');
+    INSERT INTO t2 VALUES(2, '<![CDATA]]>');
+    INSERT INTO t2 VALUES(3, '<![CDATA[');
+    INSERT INTO t2 VALUES(4, '< > & \ " _');
+END;
+|
+DELIMITER ;|
+
+--echo # Views
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+--let $databases= BUG52792
+--let $mydumper_args= --events
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+
+--echo
+--echo # Test to check 'Insufficient privileges' error.
+--echo
+
+CREATE USER user1;
+GRANT ALL PRIVILEGES ON BUG52792.* TO user1;
+
+connect (conn_1, localhost, user1, , BUG52792, $MASTER_MYPORT, $MASTER_MYSOCK);
+connection conn_1;
+
+--error 2
+--source include/mydumper_dump.inc
+--rmdir $targetdir
+
+connection default;
+disconnect conn_1;
+
+USE BUG52792;
+show create view v1;
+show create view v2;
+show create function hello1;
+show create function hello2;
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.\d+)?/TIMESTAMP/
+show create trigger trig1;
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.\d+)?/TIMESTAMP/
+show create trigger trig2;
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.\d+)?/TIMESTAMP/
+show events;
+show tables;
+
+DROP USER user1;
+DROP DATABASE BUG52792;
+--echo # UTF-8
+CREATE DATABASE BUG52792;
+USE BUG52792;
+SET NAMES utf8;
+CREATE FUNCTION `stra√üe` ( c1 CHAR(20))
+  RETURNS CHAR(50) DETERMINISTIC
+RETURN CONCAT(']]>, ', c1, '!');
+
+--let $databases= BUG52792
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+USE BUG52792;
+show create function `stra√üe`;
+DROP DATABASE BUG52792;
+USE test;
+
+--echo # MDEV-5481 mysqldump fails to dump geometry types properly
+
+create table t1 (g GEOMETRY) CHARSET koi8r;
+insert into t1 values (point(1,1)), (point(2,2));
+select astext(g) from t1;
+--let $mydumper_args= --hex-blob --load-data
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select astext(g) from t1;
+drop table t1;
+
+--echo #
+--echo # Bug #25717383: MYSQLDUMP MAY EXECUTE ANY ARBITRARY QUERY
+--echo #
+
+
+CREATE DATABASE bug25717383;
+use bug25717383;
+
+CREATE TABLE `tab
+one` (a int);
+CREATE VIEW `view
+one` as SELECT * FROM `tab
+one`;
+
+CREATE PROCEDURE `proc
+one`() SELECT * from `tab
+one`;
+
+CREATE TEMPORARY TABLE `temp
+one` (id INT);
+
+CREATE TRIGGER `trig
+one` BEFORE INSERT ON `tab
+one` FOR EACH ROW SET NEW.a = 1;
+
+CREATE EVENT `event
+one` ON SCHEDULE AT '2030-01-01 00:00:00' DO SET @a=5;
+
+SHOW TABLES FROM bug25717383;
+--replace_column 6 #
+SHOW TRIGGERS FROM bug25717383;
+--replace_column 6 #
+SHOW EVENTS FROM bug25717383;
+
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+       WHERE ROUTINE_SCHEMA='bug25717383' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+
+--let $databases= bug25717383
+--let $mydumper_args= --events
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+
+SHOW TABLES FROM bug25717383;
+--replace_column 6 #
+SHOW TRIGGERS FROM bug25717383;
+--replace_column 6 #
+SHOW EVENTS FROM bug25717383;
+
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+       WHERE ROUTINE_SCHEMA='bug25717383' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+
+DROP DATABASE bug25717383;
+
+# FIXME
+if (0)
+{
+--echo #
+--echo # MDEV-9001 - [PATCH] Fix DB name quoting in mysqldump --routine
+--echo #
+
+CREATE DATABASE `a\"'``b`;
+USE `a\"'``b`;
+CREATE PROCEDURE p1() BEGIN END;
+ALTER DATABASE `a\"'``b` COLLATE utf8_general_ci;
+--let $databases="a\\\\\\"'`b"
+if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
+{
+  --let $databases=a\\\\\\"\\'\\`b
+}
+--let $databases= a\"\'``b
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+DROP DATABASE `a\"'``b`;
+}
+
+
+--echo #
+--echo # MDEV-9124 mysqldump does not dump data if table name is same as view earlier on
+--echo #
+
+CREATE DATABASE db1 CHARSET=utf8;
+CREATE DATABASE db2 CHARSET=utf8;
+USE db2;
+CREATE TABLE nonunique_table_name (i1 serial) ENGINE=MEMORY;
+INSERT INTO nonunique_table_name VALUES (1),(2);
+CREATE TABLE nonunique_table_view_name (i2 int) ENGINE=InnoDB;
+INSERT INTO nonunique_table_view_name VALUES (3),(4);
+use db1;
+CREATE TABLE basetable (id smallint) ENGINE=MyISAM;
+CREATE TABLE nonunique_table_name (i3 smallint) ENGINE=MERGE UNION (basetable) INSERT_METHOD=LAST;
+INSERT INTO nonunique_table_name VALUES (5),(6);
+CREATE VIEW nonunique_table_view_name AS SELECT 1;
+
+--let $databases=db1 db2
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from db1.nonunique_table_name;
+select * from db1.nonunique_table_view_name;
+select * from db2.nonunique_table_name;
+select * from db2.nonunique_table_view_name;
+DROP DATABASE db1;
+DROP DATABASE db2;
+
+
+--echo #
+--echo # MDEV-15021: Fix the order in which routines are called
+--echo #
+use test;
+CREATE FUNCTION f() RETURNS INT RETURN 1;
+CREATE VIEW v1 AS SELECT f();
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+DROP VIEW v1;
+DROP FUNCTION f;
+
+--echo #
+--echo # Test for Invisible columns
+--echo #
+create database d;
+use d;
+
+--echo # Invisble field table
+create table t1(a int , b int invisible);
+insert into t1 values(1);
+insert into t1(a,b) values(1,2);
+
+--echo # not invisible field table --complete-insert wont be used
+create table t2(a int , b int);
+insert into t2(a,b) values(1,2);
+insert into t2(a,b) values(1,2);
+
+--echo # Invisble field table
+create table t3(invisible int , `a  b c & $!@#$%^&*( )` int invisible default 4, `ds=~!@ \# $% ^ & * ( ) _ - = +` int invisible default 5);
+insert into t3 values(1);
+insert into t3 values(5);
+insert into t3 values(2);
+insert into t3(`invisible`,  `a  b c & $!@#$%^&*( )`, `ds=~!@ \# $% ^ & * ( ) _ - = +` ) values(1,2,3);
+CREATE TABLE t4(√ã√è√å√è√é√ã√Å1 INT);
+insert into t4 values(1);
+--let $databases= d
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+use d;
+show create table t1;
+show create table t2;
+show create table t3;
+show create table t4;
+select * from t1;
+select a,b from t1;
+select * from t2;
+select * from t3;
+desc t3;
+drop database d;
+use test;
+
+--echo #
+--echo # MDEV-21786:
+--echo # mysqldump will forget sequence definition details on --no-data dump
+--echo #
+--disable_ps2_protocol
+create database d;
+
+CREATE SEQUENCE d.s1 START WITH 100 INCREMENT BY 10 MINVALUE=100 MAXVALUE=1100 CYCLE;
+CREATE SEQUENCE d.s2 START WITH 200 INCREMENT BY 20 MINVALUE=200 MAXVALUE=1200 CYCLE;
+CREATE SEQUENCE d.s3 START WITH 300 INCREMENT BY 30 MINVALUE=300 MAXVALUE=1300 CYCLE;
+CREATE SEQUENCE d.s4 START WITH 400 INCREMENT BY 40 MINVALUE=400 MAXVALUE=1400 CYCLE;
+SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
+
+--echo # Show create before dump
+show create sequence d.s1;
+show create sequence d.s2;
+show create sequence d.s3;
+show create sequence d.s4;
+
+--let $databases= d
+--source include/mydumper_dump.inc
+--source include/myloader_restore_rr.inc
+
+--echo # Show create after restore
+show create sequence d.s1;
+show create sequence d.s2;
+show create sequence d.s3;
+show create sequence d.s4;
+SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
+
+--let $databases= d
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+
+show create sequence d.s1;
+show create sequence d.s2;
+show create sequence d.s3;
+show create sequence d.s4;
+SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
+
+--let $databases= d
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show create sequence d.s1;
+
+drop sequence d.s1, d.s2, d.s3, d.s4;
+drop database d;
+--enable_ps2_protocol
+
+# FIXME: CONTRIB-25
+--echo #
+--echo # MDEV-20070
+--echo # mysqldump won't work correct on sequences
+--echo #
+
+DROP DATABASE IF EXISTS test1;
+CREATE DATABASE test1;
+USE test1;
+CREATE SEQUENCE seq_t_i INCREMENT 5 START WITH 1;
+CREATE TABLE t (
+  i integer DEFAULT nextval(seq_t_i),
+  j integer
+);
+INSERT INTO t VALUES (1,1),(2,2),(3,3),(4,4);
+select * from t order by i;
+
+--let $databases= test1
+--source include/mydumper_dump.inc
+--source include/myloader_restore_rr.inc
+show create sequence test1.seq_t_i;
+select * from test1.t order by i;
+
+DROP DATABASE IF EXISTS test1;
+
+--echo #
+--echo # MDEV-27816 Server fails to load a dump, taken on the same version
+--echo # Oracle mode with packages
+--echo #
+
+create database test1;
+use test1;
+set @save_sql_mode=@@sql_mode;
+set global sql_mode=oracle;
+set sql_mode=oracle;
+
+delimiter $$;
+create or replace package pkg as
+end;
+$$
+delimiter ;$$
+
+create table t1 (x int) charset=utf8mb4;
+
+# --exec $MYSQL_DUMP --routines test1
+
+--let $databases= test1
+# --let $myloader_keep_dir= 1
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+use test1;
+show create package test1.pkg;
+# t1 must retain charset in oracle mode
+show create table t1;
+drop database test1;
+use test;
+set sql_mode=@save_sql_mode;
+set global sql_mode=default;
+
