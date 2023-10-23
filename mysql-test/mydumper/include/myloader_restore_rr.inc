@@ -1,0 +1,4 @@
+--let $old_myloader= $MYLOADER
+--let $MYLOADER= rr record $MYLOADER
+--source include/myloader_restore.inc
+--let $MYLOADER= $old_myloader

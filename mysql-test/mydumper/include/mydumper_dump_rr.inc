@@ -1,0 +1,4 @@
+--let $old_mydumper= $MYDUMPER
+--let $MYDUMPER= rr record $MYDUMPER
+--source include/mydumper_dump.inc
+--let $MYDUMPER= $old_mydumper

@@ -1,3 +1,10 @@
---let $targetdir=$MYSQLTEST_VARDIR/tmp/mydumper
+if (!$targetdir)
+{
+  --let $targetdir=$MYSQLTEST_VARDIR/tmp/mydumper
+}
 --mkdir $targetdir
---exec $MYDUMPER -o $targetdir -B test --no-locks
+if (!$databases)
+{
+  --let $databases=test
+}
+--exec $MYDUMPER -o $targetdir -B '$databases' --no-locks
