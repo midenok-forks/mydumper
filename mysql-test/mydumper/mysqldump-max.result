@@ -35,7 +35,9 @@ insert into t6 values (2, 'first value');
 insert into t6 values (3, 'first value');
 insert into t6 values (4, 'first value');
 insert into t6 values (5, 'first value');
+# Dumping test 
 drop database test;
+# Restoring...
 use test;
 select * from t1;
 id	name
@@ -92,7 +94,9 @@ INSERT INTO t1 VALUES();
 SELECT COUNT(*) FROM v1;
 COUNT(*)
 1
+# Dumping test 
 drop database test;
+# Restoring...
 use test;
 SELECT COUNT(*) FROM v1;
 COUNT(*)
@@ -126,6 +130,7 @@ SET @d= 10;
 UPDATE t2 SET b=IF(@d<=10, @d:=@d+1, GET_LOCK("block_queries_2", 120)) ORDER BY a;
 connection default;
 # Make sure other queries are running (and waiting).
+# Dumping test 
 SELECT RELEASE_LOCK("block_queries_1");
 RELEASE_LOCK("block_queries_1")
 1
@@ -146,6 +151,7 @@ a	b
 DROP TABLE t1;
 DROP TABLE t2;
 drop database test;
+# Restoring...
 use test;
 SELECT * FROM t1 ORDER BY a;
 a
