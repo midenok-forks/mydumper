@@ -601,7 +601,10 @@ void initialize_sql_statement(GString *statement){
   if (is_mysql_like())  {
     if (set_names_statement)
       g_string_printf(statement,"%s;\n",set_names_statement);
+    g_string_append(statement, "/*!40014 SET UNIQUE_CHECKS=0*/;\n");
     g_string_append(statement, "/*!40014 SET FOREIGN_KEY_CHECKS=0*/;\n");
+    g_string_append(statement, "/*!40101 SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO'*/;\n");
+    g_string_append(statement, "/*!40111 SET SQL_NOTES=0*/;\n");
     if (!skip_tz) {
       g_string_append(statement, "/*!40103 SET TIME_ZONE='+00:00' */;\n");
     }
@@ -610,7 +613,10 @@ void initialize_sql_statement(GString *statement){
       g_string_printf(statement, "/*!40103 SET TIME_ZONE='+00:00' */;\n");
     }
   } else {
+    g_string_printf(statement, "SET UNIQUE_CHECKS=0;\n");
     g_string_printf(statement, "SET FOREIGN_KEY_CHECKS=0;\n");
+    g_string_append(statement, "SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';\n");
+    g_string_append(statement, "SET SQL_NOTES=0';\n");
   }
 }
 
