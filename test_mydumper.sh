@@ -7,9 +7,80 @@ mydumper_stor_dir="/tmp/data"
 mysqldumplog=/tmp/mysqldump.sql
 myloader_stor_dir=$mydumper_stor_dir
 stream_stor_dir="/tmp/stream_data"
-mydumper_base="."
-mydumper="${mydumper_base}/mydumper"
-myloader="${mydumper_base}/myloader"
+
+die()
+{
+    [ -n "$1" ] && echo "$1" >&2;
+    exit 1
+}
+
+finish()
+{
+  echo "Test finished successfully!"
+  exit 0
+}
+
+if [ -x ./mydumper -a -x ./myloader ]
+then
+  mydumper="./mydumper"
+  myloader="./myloader"
+else
+  mydumper=`which mydumper` ||
+    die "mydumper not found!"
+  myloader=`which myloader` ||
+    die "myloader not found!"
+fi
+
+mysqldump_exe=`which mariadb-dump` ||
+mysqldump_exe=`which mysqldump` ||
+  die "mysqldump client not found!"
+
+mysql_exe=`which mariadb` ||
+mysql_exe=`which mysql` ||
+  die "mysql client not found!"
+
+if [ -z "$MYSQLX_UNIX_PORT" -a -z "$MYSQL_UNIX_PORT" ]
+then
+  for d in /var/lib/mysql /var/run /tmp
+  do
+    if [ -S $d/mysqlx.sock ]; then
+      export MYSQLX_UNIX_PORT=$d/mysqlx.sock
+      echo "X socket: $MYSQLX_UNIX_PORT"
+    fi
+    if [ -S $d/mysql.sock ]; then
+      export MYSQL_UNIX_PORT=$d/mysql.sock
+      echo "Socket: $MYSQL_UNIX_PORT"
+      break
+    elif [ -S $d/mysqld.sock ]; then
+      export MYSQL_UNIX_PORT=$d/mysqld.sock
+      echo "Socket: $MYSQL_UNIX_PORT"
+      break
+    fi
+  done
+fi
+
+if [ -z "$MYSQLX_UNIX_PORT" -a -z "$MYSQL_UNIX_PORT" ]
+then
+  export MYSQL_HOST=127.0.0.1
+  export MYSQL_TCP_PORT=3306
+  echo "Using TCP connection to $MYSQL_HOST:$MYSQL_TCP_PORT"
+fi
+
+mysqldump()
+{
+  # mysqldump doesn't respect $MYSQL_HOST
+  local host_arg=${MYSQL_HOST:+-h $MYSQL_HOST}
+  $mysqldump_exe --no-defaults $host_arg -f -uroot "$@" || exit
+}
+export -f mysqldump
+
+mysql()
+{
+  # mysql seems to respect $MYSQL_HOST
+  $mysql_exe --no-defaults -f -uroot "$@" || exit
+}
+export -f mysql
+
 # LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so
 # export LD_PRELOAD
 export G_DEBUG=fatal-criticals
@@ -28,21 +99,21 @@ unset case_repeat
 
 while true
 do
-    case "$1" in
-        -c|--case)
-            if [[ "$2" == *:* ]]
-            then
-              case_repeat=${2##*:}
-              [[ case_repeat -lt 1 ]] &&
-                case_repeat=$(printf "%u/2\n" -2 | bc) # infinity (almost)
-            fi
-            case_num=${2%%:*}
-            case_num=${case_num###}
-            echo "Executing test case: #${case_num}${case_repeat:+ for $case_repeat times}  "
-            case_repeat=${case_repeat:-1}
-            shift 2;;
-        --) shift; break;;
-    esac
+  case "$1" in
+  -c|--case)
+    if [[ "$2" == *:* ]]
+    then
+      case_repeat=${2##*:}
+      [[ case_repeat -lt 1 ]] &&
+        case_repeat=$(printf "%u/2\n" -2 | bc) # infinity (almost)
+    fi
+    case_num=${2%%:*}
+    case_num=${case_num###}
+    echo "Executing test case: #${case_num}${case_repeat:+ for $case_repeat times}  "
+    case_repeat=${case_repeat:-1}
+    shift 2;;
+  --) shift; break;;
+  esac
 done
 
 
@@ -127,7 +198,7 @@ test_case_dir (){
       if (( $error > 0 ))
         then
         print_core
-        mysqldump --no-defaults -f -h 127.0.0.1 -u root --all-databases > $mysqldumplog
+        mysqldump --all-databases > $mysqldumplog
         echo "Error running: $mydumper -u root -M -v 4 -L $mydumper_log ${mydumper_parameters}"
         cat $tmp_mydumper_log
         mv $tmp_mydumper_log $mydumper_stor_dir
@@ -141,13 +212,13 @@ test_case_dir (){
   echo "DROP DATABASE IF EXISTS sakila;
 DROP DATABASE IF EXISTS myd_test;
 DROP DATABASE IF EXISTS myd_test_no_fk;
-DROP DATABASE IF EXISTS empty_db;" | mysql --no-defaults -f -h 127.0.0.1 -u root
+DROP DATABASE IF EXISTS empty_db;" | mysql
   fi
   if [ "${myloader_parameters}" != "" ]
   then
     # Import
     echo "Importing database: ${myloader_parameters}"
-    mysqldump --no-defaults -f -h 127.0.0.1 -u root --all-databases > $mysqldumplog
+    mysqldump --all-databases > $mysqldumplog
     rm -rf /tmp/fifodir
     "${time2[@]}" $myloader -u root -v 4 -L $tmp_myloader_log ${myloader_parameters}
     error=$?
@@ -157,7 +228,7 @@ DROP DATABASE IF EXISTS empty_db;" | mysql --no-defaults -f -h 127.0.0.1 -u root
       print_core
       echo "Retrying import due error"
       echo "Importing database: ${myloader_parameters}"
-      mysqldump --no-defaults -f -h 127.0.0.1 -u root --all-databases > $mysqldumplog
+      mysqldump --all-databases > $mysqldumplog
       rm -rf /tmp/fifodir
       $myloader -u root -v 4 -L $tmp_myloader_log ${myloader_parameters}
       error=$?
@@ -202,7 +273,7 @@ test_case_stream (){
     rm -rf /tmp/fifodir
     "${time2[@]}" $mydumper --stream -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters} > /tmp/stream.sql
     error=$?
-    mysqldump --no-defaults -f -h 127.0.0.1 -u root --all-databases > $mysqldumplog
+    mysqldump --all-databases > $mysqldumplog
     if (( $error > 0 ))
     then
       echo "Retrying export due error"
@@ -211,7 +282,7 @@ test_case_stream (){
       rm -rf /tmp/fifodir
       $mydumper --stream -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters} > /tmp/stream.sql
       error=$?
-      mysqldump --no-defaults -f -h 127.0.0.1 -u root --all-databases > $mysqldumplog
+      mysqldump --all-databases > $mysqldumplog
       if (( $error > 0 ))
       then
         echo "Error running: $mydumper --stream -u root -M -v 4 -L $mydumper_log ${mydumper_parameters}"
@@ -226,7 +297,7 @@ test_case_stream (){
   echo "DROP DATABASE IF EXISTS sakila;
 DROP DATABASE IF EXISTS myd_test;
 DROP DATABASE IF EXISTS myd_test_no_fk;
-DROP DATABASE IF EXISTS empty_db;" | mysql --no-defaults -f -h 127.0.0.1 -u root
+DROP DATABASE IF EXISTS empty_db;" | mysql
   fi
     rm -rf /tmp/fifodir
     cat /tmp/stream.sql | $myloader ${myloader_general_options} -u root -v 4 -L $tmp_myloader_log ${myloader_parameters} --stream
@@ -271,7 +342,7 @@ do_case()
     do
       "$@" || exit
     done
-    exit
+    finish
   fi
   unset case_cycle
   "$@"
@@ -287,18 +358,18 @@ prepare_full_test()
   fi
   tar xzf sakila-db.tar.gz
   sed -i 's/last_update TIMESTAMP/last_update TIMESTAMP NOT NULL/g;s/NOT NULL NOT NULL/NOT NULL/g' sakila-db/sakila-schema.sql
-  mysql --no-defaults -f -h 127.0.0.1 -u root < sakila-db/sakila-schema.sql
-  mysql --no-defaults -f -h 127.0.0.1 -u root < sakila-db/sakila-data.sql
+  mysql < sakila-db/sakila-schema.sql
+  mysql < sakila-db/sakila-data.sql
 
   echo "Import testing database"
   DATABASE=myd_test
-  mysql --no-defaults -f -h 127.0.0.1 -u root < test/mydumper_testing_db.sql
+  mysql < test/mydumper_testing_db.sql
 
   # export -- import
   # 1000 rows -- database must not exist
 
-  mydumper_general_options="-h 127.0.0.1 -u root -R -E -G -o ${mydumper_stor_dir} --regex '^(?!(mysql\.|sys\.))' --fifodir=/tmp/fifodir"
-  myloader_general_options="-h 127.0.0.1 -o --max-threads-for-index-creation=1 --max-threads-for-post-actions=1  --fifodir=/tmp/fifodir"
+  mydumper_general_options="-u root -R -E -G -o ${mydumper_stor_dir} --regex '^(?!(mysql\.|sys\.))' --fifodir=/tmp/fifodir $MYDUMPER_ARGS"
+  myloader_general_options="-o --max-threads-for-index-creation=1 --max-threads-for-post-actions=1  --fifodir=/tmp/fifodir $MYLOADER_ARGS"
 }
 
 full_test_global(){
@@ -359,7 +430,8 @@ full_test(){
   full_test_per_table
 }
 
-full_test
+full_test &&
+  finish
 
 #cat $mydumper_log
 #cat $myloader_log
