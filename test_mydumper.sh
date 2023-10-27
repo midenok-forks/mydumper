@@ -7,19 +7,73 @@ mydumper_stor_dir="/tmp/data"
 mysqldumplog=/tmp/mysqldump.sql
 myloader_stor_dir=$mydumper_stor_dir
 stream_stor_dir="/tmp/stream_data"
-unset rr_record
-if command -v rr &> /dev/null
-then
-  rr_record="rr record"
-fi
+
+die()
+{
+    [ -n "$1" ] && echo "$1" >&2;
+    exit 1
+}
+
 if [ -x ./mydumper -a -x ./myloader ]
 then
   mydumper="./mydumper"
   myloader="./myloader"
 else
-  mydumper="mydumper"
-  myloader="rr record myloader"
+  mydumper=`which mydumper` ||
+    die "mydumper not found!"
+  myloader=`which myloader` ||
+    die "myloader not found!"
 fi
+
+mysqldump_exe=`which mysqldump` ||
+  die "mysqldump client not found!"
+
+mysql_exe=`which mariadb` ||
+mysql_exe=`which mysql` ||
+  die "mysql client not found!"
+
+if [ -z "$MYSQLX_UNIX_PORT" -a -z "$MYSQL_UNIX_PORT" ]
+then
+  for d in /var/lib/mysql /var/run /tmp
+  do
+    if [ -S $d/mysqlx.sock ]; then
+      export MYSQLX_UNIX_PORT=$d/mysqlx.sock
+      echo "X socket: $MYSQLX_UNIX_PORT"
+    fi
+    if [ -S $d/mysql.sock ]; then
+      export MYSQL_UNIX_PORT=$d/mysql.sock
+      echo "Socket: $MYSQL_UNIX_PORT"
+      break
+    elif [ -S $d/mysqld.sock ]; then
+      export MYSQL_UNIX_PORT=$d/mysqld.sock
+      echo "Socket: $MYSQL_UNIX_PORT"
+      break
+    fi
+  done
+fi
+
+if [ -z "$MYSQLX_UNIX_PORT" -a -z "$MYSQL_UNIX_PORT" ]
+then
+  export MYSQL_HOST=127.0.0.1
+  export MYSQL_TCP_PORT=3306
+  echo "Using TCP connection to $MYSQL_HOST:$MYSQL_TCP_PORT"
+fi
+
+mysqldump()
+{
+  # mysqldump doesn't respect $MYSQL_HOST
+  local host_arg=${MYSQL_HOST:+-h $MYSQL_HOST}
+  $mysqldump_exe $host_arg "$@" || exit
+}
+export -f mysqldump
+
+mysql()
+{
+  # mysql seems to respect $MYSQL_HOST
+  $mysql_exe "$@" || exit
+}
+export -f mysql
+
 # LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so
 # export LD_PRELOAD
 export G_DEBUG=fatal-criticals
