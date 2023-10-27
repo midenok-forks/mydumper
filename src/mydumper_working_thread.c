@@ -433,16 +433,16 @@ void thd_JOB_DUMP(struct thread_data *td, struct job *job){
   if (use_savepoints){
     if (td->table_name!=NULL){
       if (tj->dbt->table != td->table_name){
-        if ( mysql_query(td->thrconn, "ROLLBACK TO SAVEPOINT mydumper")) {
+        if ( mysql_query(td->thrconn, g_strdup_printf("ROLLBACK TO SAVEPOINT mydumper%llx", (unsigned long long) td->thrconn))) {
           g_critical("Rollback to savepoint failed: %s", mysql_error(td->thrconn));
         }
-        if (mysql_query(td->thrconn, "SAVEPOINT mydumper")) {
+        if (mysql_query(td->thrconn, g_strdup_printf("SAVEPOINT mydumper%llx", (unsigned long long) td->thrconn))) {
           g_critical("Savepoint failed: %s", mysql_error(td->thrconn));
         }
         td->table_name = tj->dbt->table;
       }
     }else{
-      if (mysql_query(td->thrconn, "SAVEPOINT mydumper")) {
+      if (mysql_query(td->thrconn, g_strdup_printf("SAVEPOINT mydumper%llx", (unsigned long long) td->thrconn))) {
         g_critical("Savepoint failed: %s", mysql_error(td->thrconn));
       }
       td->table_name = tj->dbt->table;
