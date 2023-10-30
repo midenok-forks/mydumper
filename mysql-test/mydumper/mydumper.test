@@ -1,3 +1,5 @@
+--source include/have_innodb.inc
+
 # Selection of cases from mysqldump.test
 
 --echo #
@@ -1373,3 +1375,209 @@ select astext(g) from t1;
 --source include/myloader_restore.inc
 select astext(g) from t1;
 drop table t1;
+
+--echo #
+--echo # Bug #25717383: MYSQLDUMP MAY EXECUTE ANY ARBITRARY QUERY
+--echo #
+
+
+CREATE DATABASE bug25717383;
+use bug25717383;
+
+CREATE TABLE `tab
+one` (a int);
+CREATE VIEW `view
+one` as SELECT * FROM `tab
+one`;
+
+CREATE PROCEDURE `proc
+one`() SELECT * from `tab
+one`;
+
+CREATE TEMPORARY TABLE `temp
+one` (id INT);
+
+CREATE TRIGGER `trig
+one` BEFORE INSERT ON `tab
+one` FOR EACH ROW SET NEW.a = 1;
+
+CREATE EVENT `event
+one` ON SCHEDULE AT '2030-01-01 00:00:00' DO SET @a=5;
+
+SHOW TABLES FROM bug25717383;
+--replace_column 6 #
+SHOW TRIGGERS FROM bug25717383;
+--replace_column 6 #
+SHOW EVENTS FROM bug25717383;
+
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+       WHERE ROUTINE_SCHEMA='bug25717383' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+
+--let $databases= bug25717383
+--let $mydumper_args= --events
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+
+SHOW TABLES FROM bug25717383;
+--replace_column 6 #
+SHOW TRIGGERS FROM bug25717383;
+--replace_column 6 #
+SHOW EVENTS FROM bug25717383;
+
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
+       WHERE ROUTINE_SCHEMA='bug25717383' AND ROUTINE_TYPE= 'PROCEDURE'
+       ORDER BY ROUTINE_NAME;
+
+DROP DATABASE bug25717383;
+
+# FIXME
+if (0)
+{
+--echo #
+--echo # MDEV-9001 - [PATCH] Fix DB name quoting in mysqldump --routine
+--echo #
+
+CREATE DATABASE `a\"'``b`;
+USE `a\"'``b`;
+CREATE PROCEDURE p1() BEGIN END;
+ALTER DATABASE `a\"'``b` COLLATE utf8_general_ci;
+--let $databases="a\\\\\\"'`b"
+if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
+{
+  --let $databases=a\\\\\\"\\'\\`b
+}
+--let $databases= a\"\'``b
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+DROP DATABASE `a\"'``b`;
+}
+
+
+--echo #
+--echo # MDEV-9124 mysqldump does not dump data if table name is same as view earlier on
+--echo #
+
+CREATE DATABASE db1 CHARSET=utf8;
+CREATE DATABASE db2 CHARSET=utf8;
+USE db2;
+CREATE TABLE nonunique_table_name (i1 serial) ENGINE=MEMORY;
+INSERT INTO nonunique_table_name VALUES (1),(2);
+CREATE TABLE nonunique_table_view_name (i2 int) ENGINE=InnoDB;
+INSERT INTO nonunique_table_view_name VALUES (3),(4);
+use db1;
+CREATE TABLE basetable (id smallint) ENGINE=MyISAM;
+CREATE TABLE nonunique_table_name (i3 smallint) ENGINE=MERGE UNION (basetable) INSERT_METHOD=LAST;
+INSERT INTO nonunique_table_name VALUES (5),(6);
+CREATE VIEW nonunique_table_view_name AS SELECT 1;
+
+--let $databases=db1 db2
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+select * from db1.nonunique_table_name;
+select * from db1.nonunique_table_view_name;
+select * from db2.nonunique_table_name;
+select * from db2.nonunique_table_view_name;
+DROP DATABASE db1;
+DROP DATABASE db2;
+
+
+--echo #
+--echo # MDEV-15021: Fix the order in which routines are called
+--echo #
+use test;
+CREATE FUNCTION f() RETURNS INT RETURN 1;
+CREATE VIEW v1 AS SELECT f();
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+DROP VIEW v1;
+DROP FUNCTION f;
+
+--echo #
+--echo # Test for Invisible columns
+--echo #
+create database d;
+use d;
+
+--echo # Invisble field table
+create table t1(a int , b int invisible);
+insert into t1 values(1);
+insert into t1(a,b) values(1,2);
+
+--echo # not invisible field table --complete-insert wont be used
+create table t2(a int , b int);
+insert into t2(a,b) values(1,2);
+insert into t2(a,b) values(1,2);
+
+--echo # Invisble field table
+create table t3(invisible int , `a  b c & $!@#$%^&*( )` int invisible default 4, `ds=~!@ \# $% ^ & * ( ) _ - = +` int invisible default 5);
+insert into t3 values(1);
+insert into t3 values(5);
+insert into t3 values(2);
+insert into t3(`invisible`,  `a  b c & $!@#$%^&*( )`, `ds=~!@ \# $% ^ & * ( ) _ - = +` ) values(1,2,3);
+CREATE TABLE t4(ËÏÌÏÎËÁ1 INT);
+insert into t4 values(1);
+--let $databases= d
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+use d;
+show create table t1;
+show create table t2;
+show create table t3;
+show create table t4;
+select * from t1;
+select a,b from t1;
+select * from t2;
+select * from t3;
+desc t3;
+drop database d;
+use test;
+
+--echo #
+--echo # MDEV-21786:
+--echo # mysqldump will forget sequence definition details on --no-data dump
+--echo #
+--disable_ps2_protocol
+  create database d;
+
+  CREATE SEQUENCE d.s1 START WITH 100 INCREMENT BY 10 MINVALUE=100 MAXVALUE=1100 CYCLE;
+  CREATE SEQUENCE d.s2 START WITH 200 INCREMENT BY 20 MINVALUE=200 MAXVALUE=1200 CYCLE;
+  CREATE SEQUENCE d.s3 START WITH 300 INCREMENT BY 30 MINVALUE=300 MAXVALUE=1300 CYCLE;
+  CREATE SEQUENCE d.s4 START WITH 400 INCREMENT BY 40 MINVALUE=400 MAXVALUE=1400 CYCLE;
+  SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
+
+  --echo # Show create before dump
+  show create sequence d.s1;
+  show create sequence d.s2;
+  show create sequence d.s3;
+  show create sequence d.s4;
+
+  --let $databases= d
+  --source include/mydumper_dump.inc
+  --source include/myloader_restore_rr.inc
+
+  --echo # Show create after restore
+  show create sequence d.s1;
+  show create sequence d.s2;
+  show create sequence d.s3;
+  show create sequence d.s4;
+  SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
+
+  --let $databases= d
+  --source include/mydumper_dump.inc
+  --source include/myloader_restore.inc
+
+  show create sequence d.s1;
+  show create sequence d.s2;
+  show create sequence d.s3;
+  show create sequence d.s4;
+  SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
+
+  --let $databases= d
+  --source include/mydumper_dump.inc
+  --source include/myloader_restore.inc
+  show create sequence d.s1;
+
+  drop sequence d.s1, d.s2, d.s3, d.s4;
+  drop database d;
+  --enable_ps2_protocol

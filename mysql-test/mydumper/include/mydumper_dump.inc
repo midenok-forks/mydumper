@@ -7,7 +7,7 @@ if (!$databases)
 {
   --let $databases=test
 }
---let $db_args= `select replace('$databases', ' ', ',')`
+--let $db_args= `select quote(replace('$databases', ' ', ','))`
 --let $mydumper_args= -B $db_args $mydumper_args
 --echo # Dumping $databases $mydumper_args
 --replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.\d+)?/TIMESTAMP/
