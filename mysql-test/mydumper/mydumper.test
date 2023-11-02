@@ -1538,46 +1538,101 @@ use test;
 --echo # mysqldump will forget sequence definition details on --no-data dump
 --echo #
 --disable_ps2_protocol
-  create database d;
+create database d;
 
-  CREATE SEQUENCE d.s1 START WITH 100 INCREMENT BY 10 MINVALUE=100 MAXVALUE=1100 CYCLE;
-  CREATE SEQUENCE d.s2 START WITH 200 INCREMENT BY 20 MINVALUE=200 MAXVALUE=1200 CYCLE;
-  CREATE SEQUENCE d.s3 START WITH 300 INCREMENT BY 30 MINVALUE=300 MAXVALUE=1300 CYCLE;
-  CREATE SEQUENCE d.s4 START WITH 400 INCREMENT BY 40 MINVALUE=400 MAXVALUE=1400 CYCLE;
-  SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
+CREATE SEQUENCE d.s1 START WITH 100 INCREMENT BY 10 MINVALUE=100 MAXVALUE=1100 CYCLE;
+CREATE SEQUENCE d.s2 START WITH 200 INCREMENT BY 20 MINVALUE=200 MAXVALUE=1200 CYCLE;
+CREATE SEQUENCE d.s3 START WITH 300 INCREMENT BY 30 MINVALUE=300 MAXVALUE=1300 CYCLE;
+CREATE SEQUENCE d.s4 START WITH 400 INCREMENT BY 40 MINVALUE=400 MAXVALUE=1400 CYCLE;
+SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
 
-  --echo # Show create before dump
-  show create sequence d.s1;
-  show create sequence d.s2;
-  show create sequence d.s3;
-  show create sequence d.s4;
+--echo # Show create before dump
+show create sequence d.s1;
+show create sequence d.s2;
+show create sequence d.s3;
+show create sequence d.s4;
 
-  --let $databases= d
-  --source include/mydumper_dump.inc
-  --source include/myloader_restore_rr.inc
+--let $databases= d
+--source include/mydumper_dump.inc
+--source include/myloader_restore_rr.inc
 
-  --echo # Show create after restore
-  show create sequence d.s1;
-  show create sequence d.s2;
-  show create sequence d.s3;
-  show create sequence d.s4;
-  SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
+--echo # Show create after restore
+show create sequence d.s1;
+show create sequence d.s2;
+show create sequence d.s3;
+show create sequence d.s4;
+SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
 
-  --let $databases= d
-  --source include/mydumper_dump.inc
-  --source include/myloader_restore.inc
+--let $databases= d
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
 
-  show create sequence d.s1;
-  show create sequence d.s2;
-  show create sequence d.s3;
-  show create sequence d.s4;
-  SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
+show create sequence d.s1;
+show create sequence d.s2;
+show create sequence d.s3;
+show create sequence d.s4;
+SELECT NEXTVAL(d.s1),NEXTVAL(d.s2),NEXTVAL(d.s3), NEXTVAL(d.s4);
 
-  --let $databases= d
-  --source include/mydumper_dump.inc
-  --source include/myloader_restore.inc
-  show create sequence d.s1;
+--let $databases= d
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+show create sequence d.s1;
 
-  drop sequence d.s1, d.s2, d.s3, d.s4;
-  drop database d;
-  --enable_ps2_protocol
+drop sequence d.s1, d.s2, d.s3, d.s4;
+drop database d;
+--enable_ps2_protocol
+
+# FIXME: CONTRIB-25
+--echo #
+--echo # MDEV-20070
+--echo # mysqldump won't work correct on sequences
+--echo #
+
+DROP DATABASE IF EXISTS test1;
+CREATE DATABASE test1;
+USE test1;
+CREATE SEQUENCE seq_t_i INCREMENT 5 START WITH 1;
+CREATE TABLE t (
+  i integer DEFAULT nextval(seq_t_i),
+  j integer
+);
+INSERT INTO t VALUES (1,1),(2,2),(3,3),(4,4);
+select * from t order by i;
+
+--let $databases= test1
+--source include/mydumper_dump.inc
+--source include/myloader_restore_rr.inc
+show create sequence test1.seq_t_i;
+select * from test1.t order by i;
+
+DROP DATABASE IF EXISTS test1;
+
+# FIXME: CONTRIB-26
+if (0)
+{
+--echo #
+--echo # MDEV-27816 Server fails to load a dump, taken on the same version
+--echo # Oracle mode with packages
+--echo #
+
+CREATE DATABASE test1;
+USE test1;
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode=ORACLE;
+
+DELIMITER $$;
+CREATE OR REPLACE PACKAGE pkg AS
+END;
+$$
+
+DELIMITER ;$$
+
+--let $databases= test1
+--let $myloader_keep_dir= 1
+--source include/mydumper_dump.inc
+--source include/myloader_restore.inc
+SHOW CREATE PACKAGE test1.pkg;
+
+DROP DATABASE test1;
+SET sql_mode=@save_sql_mode;
+}
