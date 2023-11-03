@@ -76,6 +76,7 @@ struct database {
   char *real_database; // aka: the output schema name this can change when use -B.
   gchar *filename; // aka: the key of the schema. Useful if you have mydumper_ filenames.
   enum schema_status schema_state;
+  GAsyncQueue *sequence_queue;
   GAsyncQueue *queue;
   GMutex * mutex;
   gchar *schema_checksum;
@@ -112,6 +113,7 @@ struct db_table {
   gchar *indexes_checksum;
   gchar *triggers_checksum;
   gboolean is_view;
+  gboolean is_sequence;
 };
 
 enum file_type { 

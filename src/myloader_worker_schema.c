@@ -45,11 +45,22 @@ void schema_queue_push(enum file_type current_ft){
 
 void set_db_schema_state_to_created( struct database * database, GAsyncQueue * object_queue){
   database->schema_state=CREATED;
-  struct control_job * cj = g_async_queue_try_pop(database->queue);
+  struct control_job * cj;
+  gpointer data;
+  GAsyncQueue *queue;
+  /* Until all sequences processed we requeue only sequences */
+  if (sequences_processed < sequences) {
+    data= GINT_TO_POINTER(SCHEMA_SEQUENCE);
+    queue= database->sequence_queue;
+  } else {
+    data= GINT_TO_POINTER(SCHEMA_TABLE);
+    queue= database->queue;
+  }
+  cj= g_async_queue_try_pop(queue);
   while (cj != NULL){
     g_async_queue_push(object_queue, cj);
-    g_async_queue_push(refresh_db_queue2, GINT_TO_POINTER(SCHEMA_TABLE));
-    cj = g_async_queue_try_pop(database->queue);
+    g_async_queue_push(refresh_db_queue2, data);
+    cj = g_async_queue_try_pop(queue);
   }
 }
 
@@ -92,13 +103,26 @@ gboolean process_schema(struct thread_data * td){
       g_mutex_unlock(real_db_name->mutex);
       break;
     case SCHEMA_TABLE:
+    case SCHEMA_SEQUENCE:
       job=g_async_queue_pop(td->conf->table_queue);
       execute_use_if_needs_to(td, job->use_database, "Restoring table structure");
       ret=process_job(td, job);
-      refresh_db_and_jobs(DATA);
+      if (ft == SCHEMA_TABLE)
+        refresh_db_and_jobs(DATA);
+      else {
+        g_mutex_lock(&sequences_mutex);
+        ++sequences_processed;
+        // TODO: use g_cond_signal() after ensuring INTERMEDIATE_ENDED processed only in one thread
+        g_cond_broadcast(&sequences_cond);
+        g_mutex_unlock(&sequences_mutex);
+      }
       break;
     case INTERMEDIATE_ENDED:
       if (!second_round){
+        g_mutex_lock(&sequences_mutex);
+        while (sequences_processed < sequences)
+          g_cond_wait(&sequences_cond, &sequences_mutex);
+        g_mutex_unlock(&sequences_mutex);
         g_hash_table_iter_init ( &iter, db_hash );
         while ( g_hash_table_iter_next ( &iter, (gpointer *) &lkey, (gpointer *) &real_db_name ) ) {
           g_mutex_lock(real_db_name->mutex);
