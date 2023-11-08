@@ -1,0 +1,40 @@
+#!/bin/bash
+set -e
+
+# check out and build from mydumper repository
+mkdir -p ~/src
+cd $_
+
+dist="el8" # or el7 if building on RHEL/CentOS 7
+branch="corp" ; ver="0.15.2" ; rev="6+maria3"
+
+[ -d mydumper ] ||
+    git clone -b ${branch} https://github.com/mariadb-corporation/mydumper
+mkdir -p /tmp/src/mydumper
+cd $_
+rm -rf $dist
+ln -s ~/src/mydumper $dist
+cd $dist
+
+git status
+cmake .
+make -j$(nproc) VERBOSE=1
+
+extra_install()
+{(
+    pkg=${PKG%%.rpm}
+    dstdir=$(readlink -f "$TARGET")
+    cd ~/src/mydumper
+    git log --first-parent origin/master~..HEAD > $dstdir/$pkg.txt
+    cat > $WORK_DIR/SOURCES/install.inc << EOF
+install -Dm 0664 $dstdir/$pkg.txt \${RPM_BUILD_ROOT}%{_docdir}/mydumper/changelog.txt
+install -m 0755 test_mydumper.sh \${RPM_BUILD_ROOT}%{_docdir}/mydumper
+install -Dm 0664 -t \${RPM_BUILD_ROOT}%{_docdir}/mydumper/test test/*
+EOF
+    cat > $WORK_DIR/SOURCES/files.inc << EOF
+%{_docdir}/mydumper/*
+EOF
+)}
+
+. package/build.sh ${ver} ${rev} rpm ${dist} x86_64 extra_install
+sudo rpm -i --reinstall $TARGET/$PKG
