@@ -101,7 +101,7 @@ void *worker_index_thread(struct thread_data *td) {
     g_async_queue_pop(innodb_optimize_keys_all_tables_queue);
   }
     
-  g_debug("I-Thread %d: Starting import", td->thread_id);
+  trace("I-Thread %d: Starting import", td->thread_id);
   gboolean cont=TRUE;
   while (cont){
     cont=process_index(td);
@@ -130,6 +130,7 @@ void wait_index_worker_to_finish(){
 
 void start_innodb_optimize_keys_all_tables(){
   guint n=0;
+  trace("innodb_optimize_keys_all_tables_queue <- 1 (%u times)", max_threads_for_index_creation);
   for (n = 0; n < max_threads_for_index_creation; n++) {
     g_async_queue_push(innodb_optimize_keys_all_tables_queue, GINT_TO_POINTER(1));
   }

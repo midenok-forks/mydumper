@@ -43,7 +43,6 @@ void *process_directory(struct configuration *conf){
       for (i=0; i<g_strv_length(split);i++){
         if (strlen(split[i])>2){
           filename=split[i];
-          g_debug("Resuming file: %s", filename);
           intermediate_queue_new(g_strdup(filename));
         }
       }
@@ -53,7 +52,6 @@ void *process_directory(struct configuration *conf){
   }else{
     GDir *dir = g_dir_open(directory, 0, &error);
     while ((filename = g_dir_read_name(dir))){
-      g_debug("File found: %s", filename);
       intermediate_queue_new(g_strdup(filename));
     }
   }
