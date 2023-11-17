@@ -14,7 +14,9 @@ SET sql_mode= '';
 SET @sql_mode= @old__sql_mode;
 
 --let $mydumper_args= -B $db_args $mydumper_args
---echo # Dumping $databases $mydumper_args
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let out= `select "# Dumping $databases $mydumper_args"`
+--echo $out
 --replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.\d+)?/TIMESTAMP/
---exec $MYDUMPER -o $targetdir --no-locks --routines $mydumper_args --checksum-all
+--exec $MYDUMPER -o $targetdir --debug -L $targetdir/mydumper.log --no-locks --routines $mydumper_args --checksum-all
 --let $mydumper_args=
