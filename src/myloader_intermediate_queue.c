@@ -85,7 +85,7 @@ void initialize_intermediate_queue (struct configuration *c){
   initialize_control_job(c);
 }
 
-void intermediate_queue_new(gchar *filename){
+void intermediate_queue_new(const gchar *filename){
   struct intermediate_filename * iflnm=g_new0(struct intermediate_filename, 1);
   iflnm->filename = g_strdup(filename);
   iflnm->iterations=0;

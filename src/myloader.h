@@ -104,6 +104,7 @@ struct database {
   gchar *schema_checksum;
   gchar *post_checksum;
   gchar *triggers_checksum;
+  struct thread_data * td;
 };
 
 struct db_table {

@@ -147,6 +147,7 @@ struct database * new_database(gchar *database, gchar *filename){
   d->schema_checksum=NULL;
   d->post_checksum=NULL;
   d->triggers_checksum=NULL;
+  d->td=NULL;
   return d;
 }
 
