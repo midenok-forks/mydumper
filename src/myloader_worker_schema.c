@@ -93,7 +93,7 @@ void set_table_schema_state_to_created (struct configuration *conf){
 }
 
 gboolean second_round=FALSE;
-
+/* @return TRUE: continue worker_schema_thread() loop */
 gboolean process_schema(struct thread_data * td){
 
 
@@ -132,7 +132,7 @@ gboolean process_schema(struct thread_data * td){
         trace("table_queue -> %s", jtype2str(job->type));
       execute_use_if_needs_to(td, job->use_database, "Restoring table structure");
       ret=process_job(td, job);
-      if (ft == SCHEMA_TABLE)
+      if (ft == SCHEMA_TABLE) /* TODO: for spoof view table don't do DATA */
         refresh_db_and_jobs(DATA);
       else if (restore) {
         g_mutex_lock(&sequences_mutex);
@@ -164,7 +164,7 @@ gboolean process_schema(struct thread_data * td){
         set_table_schema_state_to_created(td->conf);
         message("Table creation enqueing completed");
         guint n=0;
-        td= schema_td;
+        td= schema_td; /* we also sending to ourselves and upper loop of worker_schema_thread() will send us to SCHEMA_TABLE/JOB_SHUTDOWN */
         for (n = 0; n < max_threads_for_schema_creation; n++, td++) {
           trace("table_queue <- JOB_SHUTDOWN");
           g_async_queue_push(td->conf->table_queue, new_job(JOB_SHUTDOWN,NULL,NULL));
