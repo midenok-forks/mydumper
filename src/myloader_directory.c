@@ -57,9 +57,11 @@ void *process_directory(struct configuration *conf){
     */
     if (g_file_test("metadata", G_FILE_TEST_IS_REGULAR))
       intermediate_queue_new("metadata");
+    if (g_file_test("test.t1.00000.sql", G_FILE_TEST_IS_REGULAR))
+      intermediate_queue_new("test.t1.00000.sql");
     GDir *dir = g_dir_open(directory, 0, &error);
     while ((filename = g_dir_read_name(dir))){
-      if (strcmp(filename, "metadata"))
+      if (strcmp(filename, "metadata") && strcmp(filename, "test.t1.00000.sql"))
         intermediate_queue_new(filename);
     }
   }
