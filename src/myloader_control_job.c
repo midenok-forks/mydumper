@@ -173,7 +173,7 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
   gboolean giveup = TRUE;
   g_mutex_lock(conf->table_list_mutex);
   GList * iter=conf->table_list;
-//  GList * next = NULL;
+  GList * next;
   struct restore_job *job = NULL;
 //  g_debug("Elements in table_list: %d",g_list_length(conf->table_list));
 //  We are going to check every table and see if there is any missing job
@@ -183,8 +183,9 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
 	  i++;
   while (iter != NULL){
     struct db_table * dbt = iter->data;
+    next= g_list_next(iter);
+
     if (dbt->database->schema_state == NOT_FOUND){
-      iter=iter->next;
       /*
         TODO: make all "voting for finish" messages another debug level
 
@@ -193,8 +194,9 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
         printed. You can also use the special value all. This environment variable only
         affects the default log handler, g_log_default_handler().
       */
-      trace("%s.%s: %s, voting for finish", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
-      continue;
+      trace("%s.%s not yet found: %s, waiting", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
+      giveup= FALSE;
+      break;
     }
 //    g_message("DB: %s Table: %s Schema State: %d remaining_jobs: %d", dbt->database->real_database,dbt->real_table, dbt->schema_state, dbt->remaining_jobs);
     if (dbt->schema_state >= DATA_DONE ||
@@ -202,7 +204,8 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
     {
 //          g_message("DB: %s Table: %s Schema State: %d data done?", dbt->database->real_database,dbt->real_table, dbt->schema_state);
       trace("%s.%s done: %s, voting for finish", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
-      iter=iter->next;
+      conf->table_list= g_list_delete_link(conf->table_list, iter);
+      iter= next;
       continue;
     }
 //    g_message("DB: %s Table: %s len: %d state: %d", dbt->database->real_database,dbt->real_table,g_list_length(dbt->restore_job_list), dbt->schema_state);
@@ -214,7 +217,8 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
       if (!resume && dbt->schema_state<CREATED ){
         giveup=FALSE;
         trace("%s.%s not yet created: %s, waiting", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
-        iter=iter->next;
+        conf->table_list= g_list_delete_link(conf->table_list, iter);
+        iter= next;
         g_mutex_unlock(dbt->mutex);
         continue;
       }
@@ -225,7 +229,8 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
       {
 //        g_message("DB: %s Table: %s DATA DONE %d", dbt->database->real_database,dbt->real_table, dbt->schema_state);
         trace("%s.%s done just now: %s, voting for finish", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
-        iter=iter->next;
+        conf->table_list= g_list_delete_link(conf->table_list, iter);
+        iter= next;
         g_mutex_unlock(dbt->mutex);
         continue;
       }
@@ -249,9 +254,16 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
           dbt->schema_state = DATA_DONE;
           gboolean res= enqueue_index_for_dbt_if_possible(conf,dbt);
 //          create_index_job(conf, dbt, -1);
-          trace("%s.%s%s queuing indexes%s", (res ? "" : " not"), dbt->database->real_database, dbt->real_table, (res ? ", prohibiting finish" : ", voting for finish"));
-          if (res)
+          if (res) {
             giveup= FALSE;
+            trace("%s.%s queuing indexes, prohibiting finish", dbt->database->real_database, dbt->real_table);
+          } else {
+            trace("%s.%s queuing indexes, prohibiting finish", dbt->database->real_database, dbt->real_table);
+            conf->table_list= g_list_delete_link(conf->table_list, iter);
+            iter= next;
+            g_mutex_unlock(dbt->mutex);
+            continue;
+          }
         }
 //        g_message("DB: %s Table: %s no more jobs in it", dbt->database->real_database,dbt->real_table);
       }
@@ -263,7 +275,7 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
 //      g_mutex_unlock(dbt->mutex);
     }
     g_mutex_unlock(dbt->mutex);
-    iter=iter->next;
+    iter= next;
   }
   second=TRUE;
   }
