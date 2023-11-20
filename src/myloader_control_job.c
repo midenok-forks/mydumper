@@ -193,8 +193,9 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
         printed. You can also use the special value all. This environment variable only
         affects the default log handler, g_log_default_handler().
       */
-      trace("%s.%s: %s, voting for finish", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
-      continue;
+      trace("%s.%s: %s, looking schema", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
+      giveup= FALSE;
+      break;
     }
 //    g_message("DB: %s Table: %s Schema State: %d remaining_jobs: %d", dbt->database->real_database,dbt->real_table, dbt->schema_state, dbt->remaining_jobs);
     if (dbt->schema_state >= DATA_DONE ||
@@ -241,7 +242,8 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
         dbt->current_threads++;
         g_mutex_unlock(dbt->mutex);
         giveup=FALSE;
-        trace("%s.%s sending %s: %s, prohibiting finish", dbt->database->real_database, dbt->real_table, rjtype2str(job->type), job->filename);
+        trace("%s.%s sending %s: %s, threads: %u, prohibiting finish", dbt->database->real_database, dbt->real_table,
+              rjtype2str(job->type), job->filename, dbt->current_threads);
         break;
       }else{
 // AND CURRENT THREADS IS 0... if not we are seting DATA_DONE to unfinished tables
