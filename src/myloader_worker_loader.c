@@ -75,12 +75,12 @@ gboolean enqueue_index_for_dbt_if_possible(struct configuration *conf, struct db
   if (dbt->schema_state==DATA_DONE){
     if (dbt->indexes == NULL){
       dbt->schema_state=ALL_DONE;
-      return TRUE;
+      return FALSE;
     }else{
-      return !create_index_job(conf, dbt, 0);
+      return create_index_job(conf, dbt, 0);
     }
   }
-  return dbt->schema_state == ALL_DONE;
+  return dbt->schema_state != ALL_DONE;
 }
 
 void enqueue_indexes_if_possible(struct configuration *conf){

@@ -185,11 +185,23 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
     struct db_table * dbt = iter->data;
     if (dbt->database->schema_state == NOT_FOUND){
       iter=iter->next;
+      /*
+        TODO: make all "voting for finish" messages another debug level
+
+        G_MESSAGES_DEBUG.  A space-separated list of log domains for which informational
+        and debug messages should be printed. By default, these messages are not
+        printed. You can also use the special value all. This environment variable only
+        affects the default log handler, g_log_default_handler().
+      */
+      trace("%s.%s: %s, voting for finish", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
       continue;
     }
 //    g_message("DB: %s Table: %s Schema State: %d remaining_jobs: %d", dbt->database->real_database,dbt->real_table, dbt->schema_state, dbt->remaining_jobs);
-    if (dbt->schema_state>=DATA_DONE){
+    if (dbt->schema_state >= DATA_DONE ||
+        (dbt->schema_state == CREATED && (dbt->is_view || dbt->is_sequence)))
+    {
 //          g_message("DB: %s Table: %s Schema State: %d data done?", dbt->database->real_database,dbt->real_table, dbt->schema_state);
+      trace("%s.%s done: %s, voting for finish", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
       iter=iter->next;
       continue;
     }
@@ -201,18 +213,23 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
 //      g_mutex_lock(dbt->mutex);
       if (!resume && dbt->schema_state<CREATED ){
         giveup=FALSE;
-        trace("%s.%s not yet created: %s, continuing", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
+        trace("%s.%s not yet created: %s, waiting", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
         iter=iter->next;
         g_mutex_unlock(dbt->mutex);
         continue;
       }
 
-      if (dbt->schema_state>=DATA_DONE){
+      // TODO: can we do without double check (not under and under dbt->mutex)?
+      if (dbt->schema_state >= DATA_DONE ||
+          (dbt->schema_state == CREATED && (dbt->is_view || dbt->is_sequence)))
+      {
 //        g_message("DB: %s Table: %s DATA DONE %d", dbt->database->real_database,dbt->real_table, dbt->schema_state);
+        trace("%s.%s done just now: %s, voting for finish", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
         iter=iter->next;
         g_mutex_unlock(dbt->mutex);
         continue;
       }
+
 //      g_message("DB: %s Table: %s checking size %d", dbt->database->real_database,dbt->real_table, g_list_length(dbt->restore_job_list));
       if (g_list_length(dbt->restore_job_list) > 0){
         // We found a job that we can process!
@@ -224,16 +241,17 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
         dbt->current_threads++;
         g_mutex_unlock(dbt->mutex);
         giveup=FALSE;
-        trace("%s.%s sending job", dbt->database->real_database, dbt->real_table);
+        trace("%s.%s sending %s: %s, prohibiting finish", dbt->database->real_database, dbt->real_table, rjtype2str(job->type), job->filename);
         break;
       }else{
 // AND CURRENT THREADS IS 0... if not we are seting DATA_DONE to unfinished tables
         if (intermediate_queue_ended_local && dbt->current_threads == 0 && (g_atomic_int_get(&(dbt->remaining_jobs))==0 )){
           dbt->schema_state = DATA_DONE;
-          giveup= enqueue_index_for_dbt_if_possible(conf,dbt);
+          gboolean res= enqueue_index_for_dbt_if_possible(conf,dbt);
 //          create_index_job(conf, dbt, -1);
-          if (!giveup)
-            trace("%s.%s queuing indexes", dbt->database->real_database, dbt->real_table);
+          trace("%s.%s%s queuing indexes%s", (res ? "" : " not"), dbt->database->real_database, dbt->real_table, (res ? ", prohibiting finish" : ", voting for finish"));
+          if (res)
+            giveup= FALSE;
         }
 //        g_message("DB: %s Table: %s no more jobs in it", dbt->database->real_database,dbt->real_table);
       }
