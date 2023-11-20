@@ -193,9 +193,8 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
         printed. You can also use the special value all. This environment variable only
         affects the default log handler, g_log_default_handler().
       */
-      trace("%s.%s: %s, looking schema", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
-      giveup= FALSE;
-      break;
+      trace("%s.%s: %s, voting for finish", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
+      continue;
     }
 //    g_message("DB: %s Table: %s Schema State: %d remaining_jobs: %d", dbt->database->real_database,dbt->real_table, dbt->schema_state, dbt->remaining_jobs);
     if (dbt->schema_state >= DATA_DONE ||
