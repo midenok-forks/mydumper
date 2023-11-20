@@ -18,7 +18,7 @@ then
   myloader="./myloader"
 else
   mydumper="mydumper"
-  myloader="myloader"
+  myloader="rr record myloader"
 fi
 # LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so
 # export LD_PRELOAD
@@ -234,7 +234,7 @@ prepare_full_test(){
   # 1000 rows -- database must not exist
 
   mydumper_general_options="-u root -R -E -G -o ${mydumper_stor_dir} --regex '^(?!(mysql\.|sys\.))' --fifodir=/tmp/fifodir"
-  myloader_general_options="-o --max-threads-for-index-creation=1 --max-threads-for-post-actions=1  --fifodir=/tmp/fifodir"
+  myloader_general_options="-o --debug --max-threads-for-index-creation=1 --max-threads-for-post-actions=1  --fifodir=/tmp/fifodir"
 }
 
 full_test_global(){
