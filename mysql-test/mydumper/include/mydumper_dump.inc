@@ -1,6 +1,7 @@
 if (!$targetdir)
 {
   --let $targetdir=$MYSQLTEST_VARDIR/tmp/mydumper
+  --exec rm -rf $targetdir
 }
 --mkdir $targetdir
 if (!$databases)
