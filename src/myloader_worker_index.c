@@ -62,9 +62,14 @@ void initialize_worker_index(struct configuration *conf){
 gboolean process_index(struct thread_data * td){
   struct control_job *job=g_async_queue_pop(td->conf->index_queue);
   if (job->type==JOB_SHUTDOWN)
+  {
+    trace("index_queue -> %s", jtype2str(job->type));
     return FALSE;
+  }
 
+  g_assert(job->type == JOB_RESTORE);
   struct db_table *dbt=job->data.restore_job->dbt;
+  trace("index_queue -> %s: %s.%s", rjtype2str(job->data.restore_job->type), dbt->database->real_database, dbt->table);
   execute_use_if_needs_to(td, job->use_database, "Restoring index");
   dbt->start_index_time=g_date_time_new_now_local();
   g_message("restoring index: %s.%s", dbt->database->name, dbt->table);

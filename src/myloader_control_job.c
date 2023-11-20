@@ -249,9 +249,12 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
           dbt->schema_state = DATA_DONE;
           gboolean res= enqueue_index_for_dbt_if_possible(conf,dbt);
 //          create_index_job(conf, dbt, -1);
-          trace("%s.%s%s queuing indexes%s", (res ? "" : " not"), dbt->database->real_database, dbt->real_table, (res ? ", prohibiting finish" : ", voting for finish"));
-          if (res)
+          if (res) {
             giveup= FALSE;
+            trace("%s.%s queuing indexes, prohibiting finish", dbt->database->real_database, dbt->real_table);
+          } else {
+            trace("%s.%s skipping indexes, voting for finish", dbt->database->real_database, dbt->real_table);
+          }
         }
 //        g_message("DB: %s Table: %s no more jobs in it", dbt->database->real_database,dbt->real_table);
       }

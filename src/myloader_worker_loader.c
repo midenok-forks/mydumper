@@ -64,8 +64,9 @@ void initialize_loader_threads(struct configuration *conf){
 }
 
 gboolean create_index_job(struct configuration *conf, struct db_table * dbt, guint tdid){
-  message("Thread %d: Enqueuing index for table: `%s`.`%s`", tdid, dbt->database->real_database, dbt->table);
+  message("Thread %d: Enqueuing index for table: %s.%s", tdid, dbt->database->real_database, dbt->table);
   struct restore_job *rj = new_schema_restore_job(g_strdup("index"),JOB_RESTORE_STRING, dbt, dbt->database,dbt->indexes, INDEXES);
+  trace("index_queue <- %s: %s.%s", rjtype2str(rj->type), dbt->database->real_database, dbt->table);
   g_async_queue_push(conf->index_queue, new_job(JOB_RESTORE,rj,dbt->database));
   dbt->schema_state=INDEX_ENQUEUED;
   return TRUE;
