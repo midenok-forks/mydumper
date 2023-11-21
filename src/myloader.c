@@ -404,7 +404,7 @@ int main(int argc, char *argv[]) {
 
   struct thread_data t;
   t.thread_id = 0;
-  t.conf = &conf;
+  t.conf = &conf; // TODO: if conf is singleton it must be accessed as global variable
   t.thrconn = conn;
   t.current_database=NULL;
   t.status=WAITING;
@@ -420,6 +420,7 @@ int main(int argc, char *argv[]) {
   if (serial_tbl_creation)
     max_threads_for_schema_creation=1;
 
+  /* TODO: if conf is singleton it must be accessed as global variable */
   initialize_worker_schema(&conf);
   initialize_worker_index(&conf);
   initialize_intermediate_queue(&conf);
