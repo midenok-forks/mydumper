@@ -28,6 +28,7 @@ do
 done
 
 ulimit -c unlimited
+export ASAN_OPTIONS=detect_leaks=0
 core_pattern=$(cat /proc/sys/kernel/core_pattern)
 echo "Core pattern: $core_pattern"
 

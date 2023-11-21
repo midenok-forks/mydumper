@@ -7,6 +7,7 @@ orbs:
 executors:
 
   bionic_percona57:
+    # TODO: make ASAN counterpart
     docker:
     - image: mydumper/mydumper-builder-bionic
       environment:
@@ -23,6 +24,7 @@ executors:
     working_directory: /tmp/src/mydumper
 
   bionic_percona80:
+    # TODO: make ASAN counterpart
     docker:
     - image: mydumper/mydumper-builder-bionic
       environment:
@@ -217,6 +219,7 @@ executors:
     working_directory: /tmp/src/mydumper
 
   jammy_percona57:
+    # TODO: make ASAN counterpart
     docker:
     - image: mydumper/mydumper-builder-jammy
       environment:
@@ -233,6 +236,7 @@ executors:
     working_directory: /tmp/src/mydumper
 
   jammy_percona80:
+    # TODO: make ASAN counterpart
     docker:
     - image: mydumper/mydumper-builder-jammy
       environment:
@@ -964,7 +968,7 @@ commands:
 
   prepare_el_mysql80:
     steps:
-    - run: sudo yum install -y mysql-community-libs mysql-community-devel mysql-community-client
+    - run: sudo yum install -y libasan mysql-community-libs mysql-community-devel mysql-community-client
 
   prepare_el8_mysql80:
     steps:
@@ -990,7 +994,7 @@ commands:
   prepare_el_mariadb1006:
     steps:
     - prepare_mariadb1006
-    - run: sudo yum install -y MariaDB-devel
+    - run: sudo yum install -y libasan MariaDB-devel
     - run: sudo yum install -y MariaDB-compat || true
 
   prepare_ubuntu_mariadb1011:
@@ -1001,7 +1005,7 @@ commands:
   prepare_el_mariadb1011:
     steps:
     - prepare_mariadb1011
-    - run: sudo yum install -y MariaDB-devel
+    - run: sudo yum install -y libasan MariaDB-devel
     - run: sudo yum install -y MariaDB-compat || true
     
 
@@ -1242,7 +1246,7 @@ commands:
     steps:
     - run: percona-release setup -y ps57
     - run: dnf -y module disable mysql || true
-    - run: yum -y install Percona-Server-devel-57 Percona-Server-client-57
+    - run: yum -y install libasan Percona-Server-devel-57 Percona-Server-client-57
 
   prepare_el_tidb:
     steps:
@@ -1251,7 +1255,7 @@ commands:
   prepare_el_percona80:
     steps:
     - run: percona-release setup -y ps80
-    - run: yum -y install percona-server-devel percona-server-client
+    - run: yum -y install libasan percona-server-devel percona-server-client
 
   compile:
     parameters:
@@ -1263,9 +1267,8 @@ commands:
         command: |
           source /etc/profile.d/sh.local || true
     - run: cmake . <<parameters.CMAKED>>
-    - run: make
+    - run: make VERBOSE=1
     - run: sudo make install
-    - run: ./mydumper --version
 
   compile_and_test_mydumper:
     parameters:
