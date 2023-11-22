@@ -705,12 +705,15 @@ void determine_ddl_lock_function(MYSQL ** conn, void(**acquire_global_lock_funct
 
 gboolean quote_character_written= FALSE;
 
+// see write_database_on_disk() for db write to metadata
+
 void print_dbt_on_metadata_gstring(struct db_table *dbt, GString *data){
   char *name= newline_protect(dbt->database->name);
   char *table_filename= newline_protect(dbt->table_filename);
   char *table= newline_protect(dbt->table);
+  const char q= identifier_quote_character;
   g_mutex_lock(dbt->chunks_mutex);
-  g_string_append_printf(data,"\n[`%s`.`%s`]\n", name, table_filename);
+  g_string_append_printf(data,"\n[%c%s%c.%c%s%c]\n", q, name, q, q, table_filename, q);
   if (!quote_character_written) {
     if (identifier_quote_character == BACKTICK)
       g_string_append_printf(data,"quote_character = BACKTICK\n");

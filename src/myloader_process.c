@@ -524,7 +524,7 @@ void process_metadata_global(const char *file)
   const char *delim_bt= "`.`";
   const char *delim_dq= "\".\"";
   const char *delimiter=    identifier_quote_character == BACKTICK ? delim_bt : delim_dq;
-  const char *delim_wrong=  identifier_quote_character == BACKTICK ? delim_dq : delim_bt;
+  const char *wrong_quote=  identifier_quote_character == BACKTICK ? "\"" : "`";
   trace("metadata: quote character is %c", identifier_quote_character);
   for (j=0; j<length; j++){
     gchar *group= newline_unprotect(groups[j]);
@@ -535,16 +535,20 @@ void process_metadata_global(const char *file)
         if (!strcmp(value, "BACKTICK")) {
           identifier_quote_character= BACKTICK;
           identifier_quote_character_str= "`";
-          delimiter= delim_bt; delim_wrong= delim_dq;
+          delimiter= delim_bt;
+          wrong_quote= "\"";
         } else if (!strcmp(value, "DOUBLE_QUOTE")) {
           identifier_quote_character= DOUBLE_QUOTE;
           identifier_quote_character_str= "\"";
-          delimiter= delim_dq; delim_wrong= delim_bt;
+          delimiter= delim_dq;
+          wrong_quote= "`";
         }
         trace("metadata: group %s changed quote character to %c", group, identifier_quote_character);
       }
     }
-    if (g_str_has_prefix(group, identifier_quote_character_str)){
+    if (g_str_has_prefix(group, wrong_quote))
+      g_error("metadata is broken: group %s has wrong quoting: %s; must be: %c", group, wrong_quote, identifier_quote_character);
+    else if (g_str_has_prefix(group, identifier_quote_character_str)) {
       database_table= g_strsplit(group+1, delimiter, 2);
       if (database_table[1] != NULL){
         database_table[1][strlen(database_table[1])-1]='\0';
@@ -577,8 +581,6 @@ void process_metadata_global(const char *file)
           else
             g_free(real_table_name);
         }
-      } else if (strstr(group + 1, delim_wrong)) {
-        g_error("metadata is broken: group %s has wrong quoting", group);
       } else {
         database_table[0][strlen(database_table[0])-1]='\0';
         struct database *database=get_db_hash(database_table[0],database_table[0]);
