@@ -18,6 +18,7 @@
 #include <glib.h>
 #include "myloader_control_job.h"
 #include "myloader_intermediate_queue.h"
+#include "myloader_process.h"
 #include <stdio.h>
 #include <glib/gstdio.h>
 #include "common.h"
@@ -56,7 +57,9 @@ void *process_directory(struct configuration *conf){
       we will get wrong condition (sequences == sequences_processed == 0).
     */
     if (g_file_test("metadata", G_FILE_TEST_IS_REGULAR))
-      intermediate_queue_new("metadata");
+    {
+      process_metadata_global("metadata");
+    }
     if (g_file_test("test.t1.00000.sql", G_FILE_TEST_IS_REGULAR))
       intermediate_queue_new("test.t1.00000.sql");
     GDir *dir = g_dir_open(directory, 0, &error);

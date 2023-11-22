@@ -504,7 +504,8 @@ gboolean process_table_filename(char * filename){
 //  g_free(filename);
 }
 
-gboolean process_metadata_global(gchar *file){
+void process_metadata_global(const char *file)
+{
 //  void *infile;
   gchar *path = g_build_filename(directory, file, NULL);
   GKeyFile * kf = load_config_file(path);
@@ -594,7 +595,6 @@ gboolean process_metadata_global(gchar *file){
     }
     g_free(group);
   }
-  return TRUE;
 }
 
 
