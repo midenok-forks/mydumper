@@ -300,7 +300,11 @@ void *signal_thread(void *data) {
 GHashTable * mydumper_initialize_hash_of_session_variables(){
   GHashTable * set_session_hash=initialize_hash_of_session_variables();
   g_hash_table_insert(set_session_hash,g_strdup("information_schema_stats_expiry"),g_strdup("0 /*!80003"));
-  g_hash_table_insert(set_session_hash, g_strdup("sql_mode"), g_strdup(sql_mode));
+  GString *str= g_string_new(sql_mode);
+  g_string_replace(str, "ORACLE", "", 0);
+  g_string_replace(str, ",,", ",", 0);
+  g_hash_table_insert(set_session_hash, g_strdup("sql_mode"), str->str);
+  g_string_free(str, FALSE);
   return set_session_hash;
 }
 
@@ -344,7 +348,7 @@ void detect_quote_character(MYSQL *conn)
   }
   mysql_free_result(res);
 
-  query= "SELECT REPLACE(REPLACE(REPLACE(REPLACE(@@SQL_MODE, 'NO_BACKSLASH_ESCAPES', ''), ',,', ','), 'PIPES_AS_CONCAT', ''), ',,', ',')";
+  query= "SELECT @@SQL_MODE";
   if (mysql_query(conn, query)){
     g_critical("Error getting SQL_MODE: %s", mysql_error(conn));
   }
@@ -355,6 +359,16 @@ void detect_quote_character(MYSQL *conn)
   row= mysql_fetch_row(res);
   str= g_string_new(NULL);
   g_string_printf(str, "'NO_AUTO_VALUE_ON_ZERO,%s'", row[0]);
+  g_string_replace(str, "NO_BACKSLASH_ESCAPES", "", 0);
+  g_string_replace(str, ",,", ",", 0);
+  g_string_replace(str, "PIPES_AS_CONCAT", "", 0);
+  g_string_replace(str, ",,", ",", 0);
+  g_string_replace(str, "NO_KEY_OPTIONS", "", 0);
+  g_string_replace(str, ",,", ",", 0);
+  g_string_replace(str, "NO_TABLE_OPTIONS", "", 0);
+  g_string_replace(str, ",,", ",", 0);
+  g_string_replace(str, "NO_FIELD_OPTIONS", "", 0);
+  g_string_replace(str, ",,", ",", 0);
   sql_mode= str->str;
   g_string_free(str, FALSE);
   mysql_free_result(res);
