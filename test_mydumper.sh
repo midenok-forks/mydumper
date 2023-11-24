@@ -39,7 +39,12 @@ print_core()
   local core=$(find . -name "core*" -print -quit)
   if [ -n "$core" ]
   then
-    gdb -q --batch -c $core $mydumper -ex "set print frame-arguments all" -ex "bt full"
+    gdb -q --batch -c $core $mydumper \
+      -ex "set print frame-arguments all" \
+      -ex "set print static off" \
+      -ex "bt full" \
+      -ex "frame 3" \
+      -ex "print *database"
     rm -f "$core"
   fi
 }
