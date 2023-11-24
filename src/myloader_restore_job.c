@@ -123,7 +123,7 @@ int overwrite_table(MYSQL *conn,gchar * database, gchar * table){
               database, table);
     query = g_strdup_printf("DROP TABLE IF EXISTS %s.%s",
                             database, table);
-    m_query(conn, query, m_critical, "Drop table failed");
+    m_query(conn, query, m_critical, "Drop table %s.%s failed", database, table);
 //    mysql_query(conn, query);
     g_free(query);
     query = g_strdup_printf("DROP VIEW IF EXISTS %s.%s", database,
