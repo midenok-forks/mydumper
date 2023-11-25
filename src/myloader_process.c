@@ -539,8 +539,10 @@ void process_metadata_global(const char *file)
       }
       break;
     }
-    if (!identifier_quote_character_str)
+    if (!identifier_quote_character_str) {
+      *(int *) 0 = 0;
       g_error("metadata is broken: quote character not found in groups");
+    }
   }
   const char *delimiter=    identifier_quote_character == BACKTICK ? delim_bt : delim_dq;
   const char *wrong_quote=  identifier_quote_character == BACKTICK ? "\"" : "`";
