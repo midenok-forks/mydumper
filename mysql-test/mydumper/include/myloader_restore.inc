@@ -11,7 +11,7 @@ while ($db)
   let $db= `select elt($i, '$db_args')`;
 }
 --echo # Restoring...
---exec $MYLOADER -d $targetdir --debug -L $targetdir/myloader.log $myloader_args
+--exec $MYLOADER -d $targetdir --verbose 3 -L $targetdir/../myloader.log $myloader_args
 if (!$myloader_keep_dir)
 {
   --rmdir $targetdir
