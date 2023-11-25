@@ -1554,7 +1554,7 @@ show create sequence d.s4;
 
 --let $databases= d
 --source include/mydumper_dump.inc
---source include/myloader_restore_rr.inc
+--source include/myloader_restore.inc
 
 --echo # Show create after restore
 show create sequence d.s1;
@@ -1582,7 +1582,6 @@ drop sequence d.s1, d.s2, d.s3, d.s4;
 drop database d;
 --enable_ps2_protocol
 
-# FIXME: CONTRIB-25
 --echo #
 --echo # MDEV-20070
 --echo # mysqldump won't work correct on sequences
@@ -1601,7 +1600,7 @@ select * from t order by i;
 
 --let $databases= test1
 --source include/mydumper_dump.inc
---source include/myloader_restore_rr.inc
+--source include/myloader_restore.inc
 show create sequence test1.seq_t_i;
 select * from test1.t order by i;
 
@@ -1618,24 +1617,47 @@ set @save_sql_mode=@@sql_mode;
 set global sql_mode=oracle;
 set sql_mode=oracle;
 
+create table t1 (x int) charset=utf8mb4;
+create view v as select * from t1;
+
 delimiter $$;
 create or replace package pkg as
 end;
 $$
+create function f() return number is begin return 42; end
+$$
+create procedure p() as begin select 43; end
+$$
+create trigger trg1 before insert on t1 for each row
+begin
+  if new.x > 10 then
+    set new.x := 10;
+    set new.x := 11;
+  end if;
+end
+$$
 delimiter ;$$
 
-create table t1 (x int) charset=utf8mb4;
+create sequence s1 start with 100 increment by 10 minvalue=100 maxvalue=1100 cycle;
+
 
 # --exec $MYSQL_DUMP --routines test1
 
 --let $databases= test1
-# --let $myloader_keep_dir= 1
---source include/mydumper_dump.inc
+--let $myloader_keep_dir= 1
+--source include/mydumper_dump_rr.inc
 --source include/myloader_restore.inc
 use test1;
 show create package test1.pkg;
 # t1 must retain charset in oracle mode
 show create table t1;
+show create function f;
+show create procedure p;
+show create view v;
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.\d+)?/TIMESTAMP/
+show create trigger trg1;
+show create sequence s1;
+
 drop database test1;
 use test;
 set sql_mode=@save_sql_mode;
