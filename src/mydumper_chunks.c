@@ -440,6 +440,7 @@ next:
   return are_there_jobs_defining;
 }
 
+static
 void enqueue_shutdown_jobs(GAsyncQueue * queue){
   struct job *j=NULL;
   guint n;
@@ -450,26 +451,34 @@ void enqueue_shutdown_jobs(GAsyncQueue * queue){
   }
 }
 
-void table_job_enqueue(GAsyncQueue * pop_queue, GAsyncQueue * push_queue,
-                       GAsyncQueue * defer_queue, struct MList *table_list)
+static inline
+void enqueue_shutdown(struct table_queuing *q)
+{
+  enqueue_shutdown_jobs(q->queue);
+  enqueue_shutdown_jobs(q->defer);
+}
+
+static
+void table_job_enqueue(struct table_queuing *q)
 {
   struct db_table *dbt;
   struct chunk_step_item *csi;
   gboolean are_there_jobs_defining=FALSE;
+  g_message("Starting %s tables", q->descr);
   for (;;) {
-    g_async_queue_pop(pop_queue);
+    g_async_queue_pop(q->request_chunk);
     if (shutdown_triggered) {
-      return; 
+      break;
     }
     dbt=NULL;
     csi=NULL;
     are_there_jobs_defining=FALSE;
-    are_there_jobs_defining=get_next_dbt_and_chunk_step_item(&dbt,&csi,table_list);
+    are_there_jobs_defining= get_next_dbt_and_chunk_step_item(&dbt, &csi, q->table_list);
 
     if (dbt!=NULL){
 
       if (dbt->status == DEFINING){
-        create_job_to_determine_chunk_type(dbt, g_async_queue_push, push_queue);
+        create_job_to_determine_chunk_type(dbt, g_async_queue_push, q->queue);
         continue;
       }
 
@@ -477,17 +486,17 @@ void table_job_enqueue(GAsyncQueue * pop_queue, GAsyncQueue * push_queue,
         switch (csi->chunk_type) {
         case INTEGER:
           create_job_to_dump_chunk(dbt, NULL, csi->number, dbt->primary_key_separated_by_comma, csi, g_async_queue_push,
-                                   defer_queue);
-          create_job_defer(dbt, push_queue);
+                                   q->defer);
+          create_job_defer(dbt, q->queue);
           break;
         case CHAR:
-          create_job_to_dump_chunk(dbt, NULL, csi->number, dbt->primary_key_separated_by_comma, csi, g_async_queue_push, push_queue);
+          create_job_to_dump_chunk(dbt, NULL, csi->number, dbt->primary_key_separated_by_comma, csi, g_async_queue_push, q->queue);
           break;
         case PARTITION:
-          create_job_to_dump_chunk(dbt, NULL, csi->number, dbt->primary_key_separated_by_comma, csi, g_async_queue_push, push_queue);
+          create_job_to_dump_chunk(dbt, NULL, csi->number, dbt->primary_key_separated_by_comma, csi, g_async_queue_push, q->queue);
           break;
         case NONE:
-          create_job_to_dump_chunk(dbt, NULL, 0, dbt->primary_key_separated_by_comma, csi, g_async_queue_push, push_queue);
+          create_job_to_dump_chunk(dbt, NULL, 0, dbt->primary_key_separated_by_comma, csi, g_async_queue_push, q->queue);
           break;
         default:
           m_error("This should not happen %s", csi->chunk_type);
@@ -497,36 +506,22 @@ void table_job_enqueue(GAsyncQueue * pop_queue, GAsyncQueue * push_queue,
     }else{
       if (are_there_jobs_defining){
 //        g_debug("chunk_builder_thread: Are jobs defining... should we wait and try again later?");
-        g_async_queue_push(pop_queue, GINT_TO_POINTER(1));
+        g_async_queue_push(q->request_chunk, GINT_TO_POINTER(1));
         usleep(1);
         continue;
       }
 //      g_debug("chunk_builder_thread: There were not job defined");
       break;
     }
-
-
-
-  }
+  } // for (;;)
+  g_message("%s tables completed", q->descr);
+  enqueue_shutdown(q);
 }
 
-void *chunk_builder_thread(struct configuration *conf){
-
-  g_message("Starting Non-InnoDB tables");
-  // TODO: refactor table_job_enqueue() args into struct
-  table_job_enqueue(give_me_another_non_innodb_chunk_step_queue,
-                    conf->non_innodb_queue, conf->non_innodb_defer_queue, non_innodb_table);
-  g_message("Non-InnoDB tables completed");
-  enqueue_shutdown_jobs(conf->non_innodb_queue);
-  enqueue_shutdown_jobs(conf->non_innodb_defer_queue);
-
-  g_message("Starting InnoDB tables");
-  table_job_enqueue(give_me_another_innodb_chunk_step_queue, conf->innodb_queue,
-                    conf->innodb_defer_queue, innodb_table);
-  g_message("InnoDB tables completed");
-  enqueue_shutdown_jobs(conf->innodb_queue);
-  enqueue_shutdown_jobs(conf->innodb_defer_queue);
-
+void *chunk_builder_thread(struct configuration *conf)
+{
+  table_job_enqueue(&conf->non_innodb);
+  table_job_enqueue(&conf->innodb);
   return NULL;
 }
 
