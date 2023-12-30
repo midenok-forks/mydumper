@@ -1119,8 +1119,10 @@ void start_dump() {
   conf.schema_queue = g_async_queue_new();
   conf.post_data_queue = g_async_queue_new();
   conf.innodb_queue = g_async_queue_new();
+  conf.innodb_defer_queue= g_async_queue_new();
   conf.ready = g_async_queue_new();
   conf.non_innodb_queue = g_async_queue_new();
+  conf.non_innodb_defer_queue= g_async_queue_new();
   conf.ready_non_innodb_queue = g_async_queue_new();
   conf.unlock_tables = g_async_queue_new();
   conf.gtid_pos_checked = g_async_queue_new();
@@ -1311,8 +1313,12 @@ void start_dump() {
   if (pmm){
     kill_pmm_thread();
   }
+  g_async_queue_unref(conf.innodb_defer_queue);
+  conf.innodb_defer_queue= NULL;
   g_async_queue_unref(conf.innodb_queue);
   conf.innodb_queue=NULL;
+  g_async_queue_unref(conf.non_innodb_defer_queue);
+  conf.non_innodb_defer_queue= NULL;
   g_async_queue_unref(conf.non_innodb_queue);
   conf.non_innodb_queue=NULL;
   g_async_queue_unref(conf.unlock_tables);
