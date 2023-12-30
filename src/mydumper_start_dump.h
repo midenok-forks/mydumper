@@ -27,6 +27,7 @@ enum job_type {
   JOB_RESTORE,
   JOB_DUMP,
   JOB_DUMP_NON_INNODB,
+  JOB_DEFER,
   JOB_DETERMINE_CHUNK_TYPE,
   JOB_TABLE,
   JOB_CHECKSUM,
@@ -77,7 +78,9 @@ struct configuration {
   GAsyncQueue *initial_queue;
   GAsyncQueue *schema_queue;
   GAsyncQueue *non_innodb_queue;
+  GAsyncQueue *non_innodb_defer_queue;
   GAsyncQueue *innodb_queue;
+  GAsyncQueue *innodb_defer_queue;
   GAsyncQueue *post_data_queue;
   GAsyncQueue *ready;
   GAsyncQueue *ready_non_innodb_queue;

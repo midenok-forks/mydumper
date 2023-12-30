@@ -450,7 +450,9 @@ void enqueue_shutdown_jobs(GAsyncQueue * queue){
   }
 }
 
-void table_job_enqueue(GAsyncQueue * pop_queue, GAsyncQueue * push_queue, struct MList *table_list){
+void table_job_enqueue(GAsyncQueue * pop_queue, GAsyncQueue * push_queue,
+                       GAsyncQueue * defer_queue, struct MList *table_list)
+{
   struct db_table *dbt;
   struct chunk_step_item *csi;
   gboolean are_there_jobs_defining=FALSE;
@@ -474,7 +476,9 @@ void table_job_enqueue(GAsyncQueue * pop_queue, GAsyncQueue * push_queue, struct
       if (csi!=NULL){
         switch (csi->chunk_type) {
         case INTEGER:
-          create_job_to_dump_chunk(dbt, NULL, csi->number, dbt->primary_key_separated_by_comma, csi, g_async_queue_push, push_queue);
+          create_job_to_dump_chunk(dbt, NULL, csi->number, dbt->primary_key_separated_by_comma, csi, g_async_queue_push,
+                                   defer_queue);
+          create_job_defer(dbt, push_queue);
           break;
         case CHAR:
           create_job_to_dump_chunk(dbt, NULL, csi->number, dbt->primary_key_separated_by_comma, csi, g_async_queue_push, push_queue);
@@ -509,14 +513,19 @@ void table_job_enqueue(GAsyncQueue * pop_queue, GAsyncQueue * push_queue, struct
 void *chunk_builder_thread(struct configuration *conf){
 
   g_message("Starting Non-InnoDB tables");
-  table_job_enqueue(give_me_another_non_innodb_chunk_step_queue, conf->non_innodb_queue, non_innodb_table);
+  // TODO: refactor table_job_enqueue() args into struct
+  table_job_enqueue(give_me_another_non_innodb_chunk_step_queue,
+                    conf->non_innodb_queue, conf->non_innodb_defer_queue, non_innodb_table);
   g_message("Non-InnoDB tables completed");
   enqueue_shutdown_jobs(conf->non_innodb_queue);
+  enqueue_shutdown_jobs(conf->non_innodb_defer_queue);
 
   g_message("Starting InnoDB tables");
-  table_job_enqueue(give_me_another_innodb_chunk_step_queue, conf->innodb_queue, innodb_table);
+  table_job_enqueue(give_me_another_innodb_chunk_step_queue, conf->innodb_queue,
+                    conf->innodb_defer_queue, innodb_table);
   g_message("InnoDB tables completed");
   enqueue_shutdown_jobs(conf->innodb_queue);
+  enqueue_shutdown_jobs(conf->innodb_defer_queue);
 
   return NULL;
 }
