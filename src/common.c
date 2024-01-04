@@ -30,7 +30,7 @@
 #include "mydumper_global.h"
 
 GAsyncQueue *stream_queue = NULL;
-gboolean skip_defer= FALSE;
+gboolean skip_defer= TRUE;
 
 /*
 const char *usr_bin_zstd_cmd[] = {"/usr/bin/zstd", "-c", NULL};
