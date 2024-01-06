@@ -27,6 +27,8 @@ do
   fi
 done
 
+declare -a time2=(/usr/bin/time -f 'real: %e; usr: %U; sys: %S; data: %D; faults: %F; rfaults: %R; fsi: %I; fso: %O; socki: %r; socko: %s; mem: %K; rss_avg: %t; rss_max: %M; shared: %X; stack: %p; cpu: %P; swaps: %W; ctx0: %c; ctx1: %w; sigs: %k; ret: %x')
+
 ulimit -c unlimited
 core_pattern=$(cat /proc/sys/kernel/core_pattern)
 echo "Core pattern: $core_pattern"
@@ -63,7 +65,7 @@ test_case_dir (){
     # Export
     echo "Exporting database: ${mydumper_parameters}"
     rm -rf /tmp/fifodir
-    eval $mydumper -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters}
+    "${time2[@]}" $mydumper -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters}
     error=$?
     cat $tmp_mydumper_log >> $mydumper_log
     if (( $error > 0 ))
@@ -73,7 +75,7 @@ test_case_dir (){
       echo "Exporting database: ${mydumper_parameters}"
       rm -rf /tmp/fifodir
       rm -rf ${mydumper_stor_dir} ${myloader_stor_dir}
-      eval $mydumper -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters}
+      $mydumper -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters}
       error=$?
       cat $tmp_mydumper_log >> $mydumper_log
       if (( $error > 0 ))
@@ -100,7 +102,7 @@ DROP DATABASE IF EXISTS empty_db;" | mysql --no-defaults -f -h 127.0.0.1 -u root
     echo "Importing database: ${myloader_parameters}"
     mysqldump --no-defaults -f -h 127.0.0.1 -u root --all-databases > $mysqldumplog
     rm -rf /tmp/fifodir
-    eval $myloader -u root -v 4 -L $tmp_myloader_log ${myloader_parameters}
+    "${time2[@]}" $myloader -u root -v 4 -L $tmp_myloader_log ${myloader_parameters}
     error=$?
     cat $tmp_myloader_log >> $myloader_log
     if (( $error > 0 ))
@@ -110,7 +112,7 @@ DROP DATABASE IF EXISTS empty_db;" | mysql --no-defaults -f -h 127.0.0.1 -u root
       echo "Importing database: ${myloader_parameters}"
       mysqldump --no-defaults -f -h 127.0.0.1 -u root --all-databases > $mysqldumplog
       rm -rf /tmp/fifodir
-      eval $myloader -u root -v 4 -L $tmp_myloader_log ${myloader_parameters}
+      $myloader -u root -v 4 -L $tmp_myloader_log ${myloader_parameters}
       error=$?
       cat $tmp_myloader_log >> $myloader_log
       if (( $error > 0 ))
@@ -149,7 +151,7 @@ test_case_stream (){
     # Export
     echo "Exporting database: $mydumper --stream -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters} | $myloader  ${myloader_general_options} -u root -v 4 -L $tmp_myloader_log ${myloader_parameters} --stream"
     rm -rf /tmp/fifodir
-    eval $mydumper --stream -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters} > /tmp/stream.sql
+    "${time2[@]}" $mydumper --stream -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters} > /tmp/stream.sql
     error=$?
     mysqldump --no-defaults -f -h 127.0.0.1 -u root --all-databases > $mysqldumplog
     if (( $error > 0 ))
@@ -158,7 +160,7 @@ test_case_stream (){
       echo "Exporting database: $mydumper --stream -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters} | $myloader  ${myloader_general_options} -u root -v 4 -L $tmp_myloader_log ${myloader_parameters} --stream"
       rm -rf ${mydumper_stor_dir} ${myloader_stor_dir}
       rm -rf /tmp/fifodir
-      eval $mydumper --stream -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters} > /tmp/stream.sql
+      $mydumper --stream -u root -M -v 4 -L $tmp_mydumper_log ${mydumper_parameters} > /tmp/stream.sql
       error=$?
       mysqldump --no-defaults -f -h 127.0.0.1 -u root --all-databases > $mysqldumplog
       if (( $error > 0 ))
