@@ -15,6 +15,28 @@ myloader="${mydumper_base}/myloader"
 export G_DEBUG=fatal-criticals
 > $mydumper_log
 > $myloader_log
+
+optstring_long="test:"
+optstring_short="t"
+
+opts=$(getopt -o "${optstring_short}" --long "${optstring_long}" --name "$0" -- "$@") ||
+    exit $?
+eval set -- "$opts"
+
+unset test_num
+
+while true
+do
+    case "$1" in
+        -t|--test)
+            test_num=$2
+            echo "Executing test case: #${test_num}"
+            shift 2;;
+        --) shift; break;;
+    esac
+done
+
+
 for i in $*
 do
   if [ "$($mydumper --version | grep "$i" | wc -l)" != "1" ]
@@ -52,6 +74,10 @@ test_case_dir (){
   s=$*
 
   number=$(( $number + 1 ))
+  if [[ -n "$test_num" && "$test_num" -ne $number ]]
+  then
+    return
+  fi
   echo "Test #${number}"
 
   mydumper_parameters=${s%%"-- "*}
@@ -129,6 +155,10 @@ DROP DATABASE IF EXISTS empty_db;" | mysql --no-defaults -f -h 127.0.0.1 -u root
       fi
     fi
   fi
+  if [[ -n "$test_num" ]]
+  then
+    exit
+  fi
 }
 
 
@@ -138,6 +168,11 @@ test_case_stream (){
   s=$*
 
   number=$(( $number + 1 ))
+  if [[ -n "$test_num" && "$test_num" -ne $number ]]
+  then
+    return
+  fi
+
   echo "Test #${number}"
 
   mydumper_parameters=${s%%"-- "*}
@@ -203,6 +238,10 @@ DROP DATABASE IF EXISTS empty_db;" | mysql --no-defaults -f -h 127.0.0.1 -u root
         exit $error
       fi
     fi
+  fi
+  if [[ -n "$test_num" ]]
+  then
+    exit
   fi
 }
 
