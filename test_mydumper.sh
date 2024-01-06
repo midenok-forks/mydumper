@@ -68,6 +68,16 @@ print_core()
   fi
 }
 
+backtrace ()
+{
+   echo "Backtrace is:"
+   local i=0
+   while caller $i
+   do
+      i=$((i+1))
+   done
+}
+
 test_case_dir (){
   # Test case
   # We should consider each test case, with different mydumper/myloader parameters
@@ -111,6 +121,7 @@ test_case_dir (){
         echo "Error running: $mydumper -u root -M -v 4 -L $mydumper_log ${mydumper_parameters}"
         cat $tmp_mydumper_log
         mv $tmp_mydumper_log $mydumper_stor_dir
+        backtrace
         exit $error
       fi
     fi
@@ -151,6 +162,7 @@ DROP DATABASE IF EXISTS empty_db;" | mysql --no-defaults -f -h 127.0.0.1 -u root
         cat $tmp_myloader_log
         mv $tmp_mydumper_log $mydumper_stor_dir
         mv $tmp_myloader_log $mydumper_stor_dir
+        backtrace
         exit $error
       fi
     fi
@@ -203,6 +215,7 @@ test_case_stream (){
         echo "Error running: $mydumper --stream -u root -M -v 4 -L $mydumper_log ${mydumper_parameters}"
         cat $tmp_mydumper_log
         mv $tmp_mydumper_log $mydumper_stor_dir
+        backtrace
         exit $error
       fi
     fi
@@ -235,6 +248,7 @@ DROP DATABASE IF EXISTS empty_db;" | mysql --no-defaults -f -h 127.0.0.1 -u root
         cat $tmp_myloader_log
         mv $tmp_mydumper_log $mydumper_stor_dir
         mv $tmp_myloader_log $mydumper_stor_dir
+        backtrace
         exit $error
       fi
     fi
@@ -269,6 +283,7 @@ prepare_full_test(){
 }
 
 full_test_global(){
+  prepare_full_test
   # single file compressed -- overriting database
 #  test_case_dir -c ${mydumper_general_options}                                 -- ${myloader_general_options} -d ${myloader_stor_dir}
   PARTIAL=0
@@ -301,7 +316,7 @@ full_test_global(){
 }
 
 full_test_per_table(){
-
+  prepare_full_test
   PARTIAL=1
   echo "Starting per table tests"
   for test in test_case_dir test_case_stream
@@ -322,7 +337,6 @@ full_test_per_table(){
 
 
 full_test(){
-  prepare_full_test
   full_test_global
   full_test_per_table
 }
