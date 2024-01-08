@@ -329,10 +329,9 @@ full_test_per_table(){
     $test -B myd_test -T myd_test.mydumper_aipk_uuid ${mydumper_general_options}	-- ${myloader_general_options} -d ${myloader_stor_dir}
     # exporting specific database -- overriting database
     $test -B myd_test_no_fk ${mydumper_general_options} -- ${myloader_general_options} -B myd_test_2 -d ${myloader_stor_dir} --serialized-table-creation
+    $test --no-data -G ${mydumper_general_options} -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation
     myloader_stor_dir=$stream_stor_dir
   done
-
-
 }
 
 
@@ -343,9 +342,5 @@ full_test(){
 
 full_test
 
-$test --no-data -G ${mydumper_general_options} 				-- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation
-
-
 #cat $mydumper_log
 #cat $myloader_log
-
