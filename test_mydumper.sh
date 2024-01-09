@@ -58,7 +58,12 @@ do
   fi
 done
 
-declare -a time2=(/usr/bin/time -f 'real: %e; usr: %U; sys: %S; data: %D; faults: %F; rfaults: %R; fsi: %I; fso: %O; socki: %r; socko: %s; mem: %K; rss_avg: %t; rss_max: %M; shared: %X; stack: %p; cpu: %P; swaps: %W; ctx0: %c; ctx1: %w; sigs: %k; ret: %x')
+if [ -x /usr/bin/time ]
+then
+  declare -a time2=(/usr/bin/time -f 'real: %e; usr: %U; sys: %S; data: %D; faults: %F; rfaults: %R; fsi: %I; fso: %O; socki: %r; socko: %s; mem: %K; rss_avg: %t; rss_max: %M; shared: %X; stack: %p; cpu: %P; swaps: %W; ctx0: %c; ctx1: %w; sigs: %k; ret: %x')
+else
+  declare -a time2=(time -p)
+fi
 
 ulimit -c unlimited
 core_pattern=$(cat /proc/sys/kernel/core_pattern)
