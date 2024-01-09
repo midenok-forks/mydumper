@@ -26,21 +26,29 @@ export G_DEBUG=fatal-criticals
 > $mydumper_log
 > $myloader_log
 
-optstring_long="test:"
-optstring_short="t"
+optstring_long="case:"
+optstring_short="c:"
 
 opts=$(getopt -o "${optstring_short}" --long "${optstring_long}" --name "$0" -- "$@") ||
     exit $?
 eval set -- "$opts"
 
-unset test_num
+unset case_num
+unset case_repeat
 
 while true
 do
     case "$1" in
-        -t|--test)
-            test_num=$2
-            echo "Executing test case: #${test_num}"
+        -c|--case)
+            if [[ "$2" == *:* ]]
+            then
+              case_repeat=${2##*:}
+              [[ case_repeat -lt 1 ]] &&
+                case_repeat=$(printf "%u/2\n" -2 | bc) # infinity (almost)
+            fi
+            case_num=${2%%:*}
+            echo "Executing test case: #${case_num}${case_repeat:+ for $case_repeat times}  "
+            case_repeat=${case_repeat:-1}
             shift 2;;
         --) shift; break;;
     esac
@@ -93,10 +101,7 @@ test_case_dir (){
   # We should consider each test case, with different mydumper/myloader parameters
   s=$*
 
-  number=$(( $number + 1 ))
-  [[ -n "$test_num" && "$test_num" -ne $number ]] &&
-    return
-  echo "Test #${number}"
+  echo "Test #${number}${case_cycle:+:$case_cycle}"
 
   mydumper_parameters=${s%%"-- "*}
   myloader_parameters=${s#*"-- "}
@@ -175,8 +180,6 @@ DROP DATABASE IF EXISTS empty_db;" | mysql --no-defaults -f -u root
       fi
     fi
   fi
-  [[ -n "$test_num" ]] &&
-    exit
 }
 
 
@@ -186,10 +189,8 @@ test_case_stream (){
   s=$*
 
   number=$(( $number + 1 ))
-  [[ -n "$test_num" && "$test_num" -ne $number ]] &&
-    return
 
-  echo "Test #${number}"
+  echo "Test #${number}${case_cycle:+:$case_cycle}"
 
   mydumper_parameters=${s%%"-- "*}
   myloader_parameters=${s#*"-- "}
@@ -257,8 +258,26 @@ DROP DATABASE IF EXISTS empty_db;" | mysql --no-defaults -f -u root
       fi
     fi
   fi
-  [[ -n "$test_num" ]] &&
+}
+
+do_case()
+{
+  number=$(( $number + 1 ))
+  if [[ -n "$case_num"  ]]
+  then
+    if [[ "$case_num" -ne $number ]]
+    then
+      return
+    fi
+    case_cycle=0
+    while ((case_cycle++ < case_repeat))
+    do
+      "$@" || exit
+    done
     exit
+  fi
+  unset case_cycle
+  "$@"
 }
 
 number=0
@@ -300,9 +319,9 @@ full_test_global(){
           do
           for rows_and_filesize_mode in "" "-r 1000" "-r 10:100:10000" "-F 10" "-r 10:100:10000 -F 10" 
             do
-            $test $backup_mode $compress_mode $rows_and_filesize_mode                                 ${mydumper_general_options} -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation $innodb_optimize_key_mode
+            do_case $test $backup_mode $compress_mode $rows_and_filesize_mode                                 ${mydumper_general_options} -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation $innodb_optimize_key_mode
             # statement size to 2MB -- overriting database
-            $test $backup_mode $compress_mode $rows_and_filesize_mode -s 2000000                      ${mydumper_general_options} -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation $innodb_optimize_key_mode
+            do_case $test $backup_mode $compress_mode $rows_and_filesize_mode -s 2000000                      ${mydumper_general_options} -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation $innodb_optimize_key_mode
             # compress and rows
             # FIXME: savepoints does't work in AUTOCOMMIT=1
             # $test $backup_mode $compress_mode $rows_and_filesize_mode --use-savepoints --less-locking ${mydumper_general_options} -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation $innodb_optimize_key_mode
@@ -325,13 +344,14 @@ full_test_per_table(){
   for test in test_case_dir test_case_stream
   do
     echo "Executing tests: $test"
-    $test -G --lock-all-tables -B empty_db ${mydumper_general_options}                           -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation
+    do_case $test -G --lock-all-tables -B empty_db ${mydumper_general_options}                           -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation
     # exporting specific database -- overriting database
-    $test -B myd_test_no_fk ${mydumper_general_options} -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation
+    do_case $test -B myd_test_no_fk ${mydumper_general_options} -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation
     # exporting specific table -- overriting database
-    $test -B myd_test -T myd_test.mydumper_aipk_uuid ${mydumper_general_options}	-- ${myloader_general_options} -d ${myloader_stor_dir}
+    do_case $test -B myd_test -T myd_test.mydumper_aipk_uuid ${mydumper_general_options}	-- ${myloader_general_options} -d ${myloader_stor_dir}
     # exporting specific database -- overriting database
-    $test -B myd_test_no_fk ${mydumper_general_options} -- ${myloader_general_options} -B myd_test_2 -d ${myloader_stor_dir} --serialized-table-creation
+    do_case $test -B myd_test_no_fk ${mydumper_general_options} -- ${myloader_general_options} -B myd_test_2 -d ${myloader_stor_dir} --serialized-table-creation
+    do_case $test --no-data -G ${mydumper_general_options} -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation
     myloader_stor_dir=$stream_stor_dir
     $test --no-data -G ${mydumper_general_options} -- ${myloader_general_options} -d ${myloader_stor_dir} --serialized-table-creation
   done
