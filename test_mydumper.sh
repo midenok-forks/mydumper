@@ -274,10 +274,11 @@ do_case()
 
 number=0
 
-prepare_full_test(){
-
+prepare_full_test()
+{
   if [ ! -f "sakila-db.tar.gz" ]; then
-    wget -O sakila-db.tar.gz  https://downloads.mysql.com/docs/sakila-db.tar.gz
+    wget -O sakila-db.tar.gz https://midenok-forks.github.io/sakila-db.tar.gz ||
+      exit
   fi
   tar xzf sakila-db.tar.gz
   sed -i 's/last_update TIMESTAMP/last_update TIMESTAMP NOT NULL/g;s/NOT NULL NOT NULL/NOT NULL/g' sakila-db/sakila-schema.sql
