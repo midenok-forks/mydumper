@@ -67,7 +67,12 @@ do
   fi
 done
 
-declare -a time2=(/usr/bin/time -f 'real: %e; usr: %U; sys: %S; data: %D; faults: %F; rfaults: %R; fsi: %I; fso: %O; socki: %r; socko: %s; mem: %K; rss_avg: %t; rss_max: %M; shared: %X; stack: %p; cpu: %P; swaps: %W; ctx0: %c; ctx1: %w; sigs: %k; ret: %x')
+if [ -x /usr/bin/time ]
+then
+  declare -a time2=(/usr/bin/time -f 'real: %e; usr: %U; sys: %S; data: %D; faults: %F; rfaults: %R; fsi: %I; fso: %O; socki: %r; socko: %s; mem: %K; rss_avg: %t; rss_max: %M; shared: %X; stack: %p; cpu: %P; swaps: %W; ctx0: %c; ctx1: %w; sigs: %k; ret: %x')
+else
+  declare -a time2=(time -p)
+fi
 
 ulimit -c unlimited
 core_pattern=$(cat /proc/sys/kernel/core_pattern)
@@ -300,7 +305,7 @@ prepare_full_test(){
   # 1000 rows -- database must not exist
 
   mydumper_general_options="-u root -R -E -G -o ${mydumper_stor_dir} --regex '^(?!(mysql\.|sys\.))' --fifodir=/tmp/fifodir"
-  myloader_general_options="-o --debug --max-threads-for-index-creation=1 --max-threads-for-post-actions=1  --fifodir=/tmp/fifodir"
+  myloader_general_options="-o --max-threads-for-index-creation=1 --max-threads-for-post-actions=1  --fifodir=/tmp/fifodir"
 }
 
 full_test_global(){
