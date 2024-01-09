@@ -253,6 +253,17 @@ void configure_connection(MYSQL *conn) {
     mysql_options(conn, MYSQL_OPT_TLS_VERSION, tls_version);
   }
 #endif
+
+  if (!hostname)
+    hostname= getenv("MYSQL_HOST");
+
+  if (!port) {
+    char *p= getenv("MYSQL_TCP_PORT");
+    port= p ? atoi(p) : 0;
+  }
+
+  if (!socket_path)
+    socket_path= getenv("MYSQL_UNIX_PORT");
 }
 
 void print_connection_details_once(){
