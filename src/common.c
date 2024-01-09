@@ -638,6 +638,15 @@ void initialize_common_options(GOptionContext *context, const gchar *group){
 
   m_key_file_merge(key_file, extra_key_file);
 
+  if (!hostname)
+    hostname= getenv("MYSQL_HOST");
+
+  if (!port)
+    port= atoi(getenv("MYSQL_TCP_PORT"));
+
+  if (!socket_path)
+    socket_path= getenv("MYSQL_UNIX_PORT");
+
 //  g_key_file_free(extra_key_file);
 }
 
