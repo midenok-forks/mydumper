@@ -54,6 +54,7 @@ declare -a time2=(/usr/bin/time -f 'real: %e; usr: %U; sys: %S; data: %D; faults
 ulimit -c unlimited
 core_pattern=$(cat /proc/sys/kernel/core_pattern)
 echo "Core pattern: $core_pattern"
+echo "Core limit: $(ulimit -c)"
 
 print_core()
 {
