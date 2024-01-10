@@ -87,8 +87,8 @@ export G_DEBUG=fatal-criticals
 > $mydumper_log
 > $myloader_log
 
-optstring_long="case:"
-optstring_short="c:"
+optstring_long="case:,rr-myloader,rr-mydumper"
+optstring_short="c:LD"
 
 opts=$(getopt -o "${optstring_short}" --long "${optstring_long}" --name "$0" -- "$@") ||
     exit $?
@@ -96,6 +96,8 @@ eval set -- "$opts"
 
 unset case_num
 unset case_repeat
+unset rr_myloader
+unset rr_mydumper
 
 while true
 do
@@ -112,6 +114,12 @@ do
     echo "Executing test case: #${case_num}${case_repeat:+ for $case_repeat times}  "
     case_repeat=${case_repeat:-1}
     shift 2;;
+  -L|--rr-myloader)
+    myloader="rr record $myloader"
+    shift;;
+  -D|--rr-mydumper)
+    mydumper="rr record $mydumper"
+    shift;;
   --) shift; break;;
   esac
 done
