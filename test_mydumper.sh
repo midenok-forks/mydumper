@@ -14,6 +14,12 @@ die()
     exit 1
 }
 
+finish()
+{
+  echo "Test finished successfully!"
+  exit 0
+}
+
 if [ -x ./mydumper -a -x ./myloader ]
 then
   mydumper="./mydumper"
@@ -25,6 +31,7 @@ else
     die "myloader not found!"
 fi
 
+mysqldump_exe=`which mariadb-dump` ||
 mysqldump_exe=`which mysqldump` ||
   die "mysqldump client not found!"
 
@@ -333,7 +340,7 @@ do_case()
     do
       "$@" || exit
     done
-    exit
+    finish
   fi
   unset case_cycle
   "$@"
@@ -422,7 +429,8 @@ full_test(){
   full_test_per_table
 }
 
-full_test
+full_test &&
+  finish
 
 #cat $mydumper_log
 #cat $myloader_log
