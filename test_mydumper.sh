@@ -264,8 +264,6 @@ test_case_stream (){
   # We should consider each test case, with different mydumper/myloader parameters
   s=$*
 
-  number=$(( $number + 1 ))
-
   echo "Case #${number}${case_cycle:+:$case_cycle}"
 
   mydumper_parameters=${s%%"-- "*}
