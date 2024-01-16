@@ -123,7 +123,7 @@ void *process_loader_thread(struct thread_data * td) {
       trace("data_queue -> %s: %s.%s, threads %u", rjtype2str(rj->type), dbt->database->real_database, dbt->real_table, dbt->current_threads);
       job=new_job(JOB_RESTORE,rj, dbt->database);
       execute_use_if_needs_to(td, job->use_database, "Restoring tables (2)");
-      cont=process_job(td, job);
+      cont=process_job(td, job, NULL);
       g_mutex_lock(dbt->mutex);
       dbt->current_threads--;
       trace("%s.%s: done job, threads %u", dbt->database->real_database, dbt->real_table, dbt->current_threads);
