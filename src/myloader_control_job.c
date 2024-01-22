@@ -181,7 +181,7 @@ gboolean are_available_jobs(struct thread_data * td){
 }
 
 gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_condition, struct restore_job ** rj){
-  gboolean giveup = intermediate_queue_ended_local;
+  gboolean giveup = TRUE;
   g_mutex_lock(conf->table_list_mutex);
   GList * iter=conf->table_list;
 //  GList * next = NULL;
@@ -214,18 +214,17 @@ gboolean give_me_next_data_job_conf(struct configuration *conf, gboolean test_co
     }
 //    g_message("DB: %s Table: %s len: %d state: %d", dbt->database->real_database,dbt->real_table,g_list_length(dbt->restore_job_list), dbt->schema_state);
     g_mutex_lock(dbt->mutex);
-    if (!resume && dbt->schema_state<CREATED ){
-      giveup=FALSE;
-      trace("%s.%s not yet created: %s, waiting", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
-      iter=iter->next;
-      g_mutex_unlock(dbt->mutex);
-      continue;
-    }
-
-    if (dbt->schema_state==CREATED && dbt->current_threads < dbt->max_threads) {
+    if (!test_condition || (dbt->schema_state==CREATED && dbt->current_threads < dbt->max_threads)) {
       // I could do some job in here, do we have some for me?
 //      g_message("DB: %s Table: %s max_threads: %d current: %d", dbt->database->real_database,dbt->real_table, dbt->max_threads,dbt->current_threads);
 //      g_mutex_lock(dbt->mutex);
+      if (!resume && dbt->schema_state<CREATED ){
+        giveup=FALSE;
+        trace("%s.%s not yet created: %s, waiting", dbt->database->real_database, dbt->real_table, status2str(dbt->schema_state));
+        iter=iter->next;
+        g_mutex_unlock(dbt->mutex);
+        continue;
+      }
 
       // TODO: can we do without double check (not under and under dbt->mutex)?
       if (dbt->schema_state >= DATA_DONE ||
@@ -372,8 +371,7 @@ void *control_job_thread(struct configuration *conf){
           g_async_queue_push(data_queue,rj);
           trace("here_is_your_job <- %s", ft2str(DATA));
           g_async_queue_push(here_is_your_job, GINT_TO_POINTER(DATA));
-        }else
-        {
+        }else{
 //          g_message("No job available");
 
 
