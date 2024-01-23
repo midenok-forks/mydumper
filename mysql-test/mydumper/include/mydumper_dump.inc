@@ -18,5 +18,5 @@ SET @sql_mode= @old__sql_mode;
 --let out= `select "# Dumping $databases $mydumper_args"`
 --echo $out
 --replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.\d+)?/TIMESTAMP/
---exec $MYDUMPER -o $targetdir --debug -L $targetdir/../mydumper.log --no-locks --routines $mydumper_args --checksum-all
+--exec $MYDUMPER -o $targetdir --debug -L $targetdir/../mydumper.log --routines $mydumper_args --checksum-all
 --let $mydumper_args=
