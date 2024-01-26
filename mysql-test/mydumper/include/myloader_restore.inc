@@ -12,6 +12,12 @@ while ($db)
 }
 --echo # Restoring...
 --exec $MYLOADER -d $targetdir --verbose 3 -L $targetdir/../myloader.log $myloader_args
+--let grep_file=$targetdir/../myloader.log
+--let grep_regex=\[WARNING\](?! - Failed to load config file)
+--replace_regex /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d // /Thread \d+:\s*//
+--replace_result $MYSQLTEST_VARDIR VARDIR
+--source include/grep.inc
+
 if (!$myloader_keep_dir)
 {
   --rmdir $targetdir

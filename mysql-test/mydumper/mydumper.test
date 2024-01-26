@@ -1644,8 +1644,7 @@ create sequence s1 start with 100 increment by 10 minvalue=100 maxvalue=1100 cyc
 # --exec $MYSQL_DUMP --routines test1
 
 --let $databases= test1
---let $myloader_keep_dir= 1
---source include/mydumper_dump_rr.inc
+--source include/mydumper_dump.inc
 --source include/myloader_restore.inc
 use test1;
 show create package test1.pkg;
@@ -1663,3 +1662,26 @@ use test;
 set sql_mode=@save_sql_mode;
 set global sql_mode=default;
 
+--echo #
+--echo # CONTRIB-42 Lost row in dump for table with char-based PK
+--echo #
+create table t1 (pk int auto_increment primary key, b blob);
+create table t2 (pk varchar(32) primary key, b blob);
+insert t1 values (default, "abc");
+insert t1 values (default, "abc");
+insert t1 values (default, "abc");
+insert t1 values (default, "abc");
+insert t1 (b) select b from t1;
+insert t1 (b) select b from t1;
+insert t2 select * from t1;
+select count(pk) from t1;
+select count(pk) from t2;
+
+--let $mydumper_args=--rows 3 --threads 2 --checksum-all
+--source include/mydumper_dump.inc
+--let $myloader_args=--threads 2
+--source include/myloader_restore.inc
+select count(pk) from t1;
+select count(pk) from t2;
+
+drop tables t1, t2;
