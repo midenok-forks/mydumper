@@ -14,7 +14,7 @@
 
 if(UNIX) 
     set(MYSQL_CONFIG_PREFER_PATH "$ENV{MYSQL_HOME}/bin" CACHE FILEPATH
-        "preferred path to MySQL (mysql_config)")
+        "preferred path to MySQL (mysql_config)" FORCE)
     find_program(MARIADB_CONFIG mariadb_config
         ${MYSQL_CONFIG_PREFER_PATH}
         /usr/local/mariadb/bin/
@@ -31,13 +31,13 @@ if(UNIX)
             OUTPUT_VARIABLE MY_TMP)
         string(STRIP ${MY_TMP} MY_TMP)
         if (NOT ${MY_TMP} STREQUAL "")
-            set(MARIADB_SSL TRUE CACHE INTERNAL "libmariadb ssl")
+            set(MARIADB_SSL TRUE CACHE INTERNAL "libmariadb ssl" FORCE)
         else()
-            set(MARIADB_SSL FALSE CACHE INTERNAL "libmariadb ssl")
+            set(MARIADB_SSL FALSE CACHE INTERNAL "libmariadb ssl" FORCE)
         endif()
-        set(MARIADB_FOUND TRUE CACHE INTERNAL "libmariadb found")
+        set(MARIADB_FOUND TRUE CACHE INTERNAL "libmariadb found" FORCE)
     else()
-        set(MARIADB_FOUND FALSE CACHE INTERNAL "libmariadb found")
+        set(MARIADB_FOUND FALSE CACHE INTERNAL "libmariadb found" FORCE)
     endif()
 
     if(NOT MYSQL_CONFIG)
@@ -56,7 +56,7 @@ if(UNIX)
             ARGS --cflags
             OUTPUT_VARIABLE MY_TMP)
 
-        set(MYSQL_CFLAGS ${MY_TMP} CACHE STRING INTERNAL)
+        set(MYSQL_CFLAGS ${MY_TMP} CACHE STRING INTERNAL FORCE)
 
         # set INCLUDE_DIR
         exec_program(${MYSQL_CONFIG}
@@ -65,7 +65,7 @@ if(UNIX)
 
         string(REGEX REPLACE "-I([^ ]*)( .*)?" "\\1" MY_TMP "${MY_TMP}")
 
-        set(MYSQL_ADD_INCLUDE_DIR ${MY_TMP} CACHE FILEPATH INTERNAL)
+        set(MYSQL_ADD_INCLUDE_DIR ${MY_TMP} CACHE FILEPATH INTERNAL FORCE)
 
         # set LIBRARY_DIR
         exec_program(${MYSQL_CONFIG}
@@ -89,26 +89,25 @@ if(UNIX)
             string(REGEX REPLACE "[ ]*-L([^ ]*)" "\\1" MY_LIB "${MY_LIB}")
             list(APPEND MYSQL_ADD_LIBRARY_PATH "${MY_LIB}")
         endforeach(MY_LIB ${MYSQL_LIBS})
-
     else(MYSQL_CONFIG)
         set(MYSQL_ADD_LIBRARIES "")
         list(APPEND MYSQL_ADD_LIBRARIES "mysqlclient")
     endif(MYSQL_CONFIG)
 else(UNIX)
-    set(MYSQL_ADD_INCLUDE_DIR "c:/msys/local/include" CACHE FILEPATH INTERNAL)
-    set(MYSQL_ADD_LIBRARY_PATH "c:/msys/local/lib" CACHE FILEPATH INTERNAL)
+    set(MYSQL_ADD_INCLUDE_DIR "c:/msys/local/include" CACHE FILEPATH INTERNAL FORCE)
+    set(MYSQL_ADD_LIBRARY_PATH "c:/msys/local/lib" CACHE FILEPATH INTERNAL FORCE)
 ENDIF(UNIX)
 
-find_path(MYSQL_INCLUDE_DIR mysql.h
-    ${MYSQL_ADD_INCLUDE_DIR}
+find_path(_include_dir NAMES "mysql.h"
+    PATHS "${MYSQL_ADD_INCLUDE_DIR}"
     /usr/local/include
-    /usr/local/include/mysql 
     /usr/local/mysql/include
-    /usr/local/mysql/include/mysql
-    /usr/include 
-    /usr/include/mysql
-    /usr/include/mysql/private
+    /usr/include
+    PATH_SUFFIXES "." "mysql" "mysql/private"
+    NO_DEFAULT_PATH
+    NO_CACHE
 )
+set(MYSQL_INCLUDE_DIR "${_include_dir}" CACHE FILEPATH INTERNAL FORCE)
 
 set(TMP_MYSQL_LIBRARIES "")
 set(CMAKE_FIND_LIBRARY_SUFFIXES .so .lib .so.1 .dylib .a .tbd)
@@ -125,13 +124,13 @@ foreach(MY_LIB ${MYSQL_ADD_LIBRARIES})
     list(APPEND TMP_MYSQL_LIBRARIES "${MYSQL_LIBRARIES_${MY_LIB}}")
 endforeach(MY_LIB ${MYSQL_ADD_LIBRARIES})
 
-set(MYSQL_LIBRARIES ${TMP_MYSQL_LIBRARIES} CACHE FILEPATH INTERNAL)
+set(MYSQL_LIBRARIES ${TMP_MYSQL_LIBRARIES} CACHE FILEPATH INTERNAL FORCE)
 
 if(MYSQL_INCLUDE_DIR AND MYSQL_LIBRARIES)
-    set(MYSQL_FOUND TRUE CACHE INTERNAL "MySQL found")
+    set(MYSQL_FOUND TRUE CACHE INTERNAL "MySQL found" FORCE)
     message(STATUS "Found MySQL: ${MYSQL_INCLUDE_DIR}, ${MYSQL_LIBRARIES}")
 else(MYSQL_INCLUDE_DIR AND MYSQL_LIBRARIES)
-    set(MYSQL_FOUND FALSE CACHE INTERNAL "MySQL found")
+    set(MYSQL_FOUND FALSE CACHE INTERNAL "MySQL found" FORCE)
     message(STATUS "MySQL not found.")
 endif(MYSQL_INCLUDE_DIR AND MYSQL_LIBRARIES)
 
